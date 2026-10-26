@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from core import (automation, autoreply, browser_pool, chat, inbox, msgstore, notify,
-                   reply_engine, scheduler, watcher)
+                   reply_engine, scheduler, slogan, watcher)
 from core.config import DATA_DIR, load_config, save_config
 from core.runtime import (
     load_runtime,
@@ -378,6 +378,22 @@ def api_config_save(body: ConfigBody, token: str = Header(default="", alias="X-A
         raise HTTPException(status_code=400, detail=str(e))
     scheduler.apply_schedule()
     return {"ok": True, "config": cfg}
+
+
+@app.get("/api/slogan/preview")
+def api_slogan_preview(day: str = "", token: str = Header(default="", alias="X-Auth-Token")) -> dict:
+    """每日文案预览：按日期查看当天会给每个好友发什么、以及额外示例。
+
+    ?day=YYYY-MM-DD 指定日期，缺省为今天。
+    需要 X-Auth-Token（与其它接口一致）。
+    """
+    _check_auth(token)
+    cfg = load_config()
+    peers = cfg.get("friends") or []
+    try:
+        return slogan.preview_for_date(day, peers)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"日期格式错误：{e}")
 
 
 @app.post("/api/run")

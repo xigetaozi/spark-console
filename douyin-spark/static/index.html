@@ -474,6 +474,13 @@
     .gh-icon:active { transform: scale(0.94); }
     .gh-icon svg { width: 16px; height: 16px; display: block; }
 
+    /* 每日文案预览 */
+    .slogan-list { display: flex; flex-direction: column; gap: 6px; }
+    .slogan-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+      border: 1px solid var(--rule); border-radius: 8px; }
+    .slogan-name { flex: 0 0 90px; color: var(--tx-3); font-size: 12.5px; }
+    .slogan-text { flex: 1; color: var(--tx); font-size: 13.5px; }
+
     /* 返回我的主页：与 gh-icon 同高，带文字，有未保存修改时高亮 */
     .gh-back {
       display: inline-flex; align-items: center; gap: 6px;
@@ -2158,6 +2165,33 @@
                 <el-button @click="applySelection">把勾选结果写入名单</el-button>
               </el-form-item>
             </el-form>
+
+            <el-divider content-position="left">每日文案预览</el-divider>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+              <el-date-picker v-model="sloganDate" type="date" value-format="YYYY-MM-DD"
+                placeholder="选择日期" style="width:170px;"></el-date-picker>
+              <el-button :loading="sloganLoading" @click="loadSloganPreview">预览当日文案</el-button>
+              <span class="muted-hint">查看指定日期会给每位好友发送的文案（结果可复现：同一天结果固定）</span>
+            </div>
+            <div v-if="sloganPreview">
+              <div class="muted-hint" style="margin-bottom:8px;">{{ sloganPreview.date }} · 每位好友的文案</div>
+              <div v-if="Object.keys(sloganPreview.per_friend || {}).length" class="slogan-list">
+                <div v-for="(txt, name) in sloganPreview.per_friend" :key="name" class="slogan-row">
+                  <span class="slogan-name">{{ name }}</span>
+                  <span class="slogan-text">{{ txt }}</span>
+                  <el-button size="small" text type="primary" @click="copyText(txt)">复制</el-button>
+                </div>
+              </div>
+              <div v-else class="muted-hint">名单为空，暂无可预览的「每好友文案」；下方为当日示例</div>
+              <div class="muted-hint" style="margin-top:10px;">额外示例</div>
+              <div class="slogan-list">
+                <div v-for="(txt, i) in (sloganPreview.samples || [])" :key="i" class="slogan-row">
+                  <span class="slogan-name">示例 {{ i + 1 }}</span>
+                  <span class="slogan-text">{{ txt }}</span>
+                  <el-button size="small" text type="primary" @click="copyText(txt)">复制</el-button>
+                </div>
+              </div>
+            </div>
           </el-card>
         </el-tab-pane>
 
@@ -2207,6 +2241,12 @@
                 <el-switch v-model="settingsForm.only_with_spark" />
                 <span class="muted-hint" style="margin-left:8px;">
                   开启后只对「有火花」的好友发送；无火花、或抓取结果里没有该会话的一律跳过
+                </span>
+              </el-form-item>
+              <el-form-item label="自动生成每日文案">
+                <el-switch v-model="settingsForm.auto_slogan" />
+                <span class="muted-hint" style="margin-left:8px;">
+                  开启后每天按「日期+好友」自动生成轻松友好的随机文案（互不重复），忽略下方手写模板；关闭则用你手写的模板随机挑一条
                 </span>
               </el-form-item>
               <el-form-item label="告警 Webhook">
@@ -2466,9 +2506,12 @@
           { name: 'Element Plus', desc: 'element-plus.org', url: 'https://element-plus.org/zh-CN/', short: 'EP', bg: 'linear-gradient(140deg,#6cb0ff,#3d7fe0)' },
         ];
         const config = reactive({ schedule_time: '21:00', jitter_minutes: 30, send_gap_min: 6, send_gap_max: 12, max_friends_per_run: 20, friends: [], messages: [] });
-        const settingsForm = reactive({ schedule_time: '21:00', jitter_minutes: 30, send_gap_min: 6, send_gap_max: 12, manual_gap_min: 0, manual_gap_max: 0, max_friends_per_run: 20, only_with_spark: true, friends_mode: 'list', refresh_contacts_before_send: true, alert_webhook: '' });
+        const settingsForm = reactive({ schedule_time: '21:00', jitter_minutes: 30, send_gap_min: 6, send_gap_max: 12, manual_gap_min: 0, manual_gap_max: 0, max_friends_per_run: 20, only_with_spark: true, friends_mode: 'list', refresh_contacts_before_send: true, auto_slogan: false, alert_webhook: '' });
         const friendsText = ref('');
         const messagesText = ref('');
+        const sloganDate = ref('');
+        const sloganLoading = ref(false);
+        const sloganPreview = ref(null);
         const logs = ref('');
         const autoRefresh = ref(false);
         const stopping = ref(false);
@@ -2568,7 +2611,7 @@
         const DIRTY_KEYS = ['schedule_time', 'jitter_minutes', 'send_gap_min', 'send_gap_max',
                             'manual_gap_min', 'manual_gap_max', 'max_friends_per_run',
                             'only_with_spark', 'friends_mode', 'refresh_contacts_before_send',
-                            'alert_webhook'];
+                            'auto_slogan', 'alert_webhook'];
         const savedSnapshot = ref('');
         function stateSnapshot() {
           const st = {};
@@ -2658,6 +2701,26 @@
         function applySelection() {
           friendsText.value = selectedFriends.value.join('\n');
           ElementPlus.ElMessage.success('已把勾选结果写入名单，记得点「保存」');
+        }
+        async function loadSloganPreview() {
+          sloganLoading.value = true;
+          try {
+            const day = sloganDate.value || '';
+            const r = await api.get('/slogan/preview', { params: { day } });
+            sloganPreview.value = r.data;
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '预览失败');
+          } finally {
+            sloganLoading.value = false;
+          }
+        }
+        async function copyText(txt) {
+          try {
+            await navigator.clipboard.writeText(txt);
+            ElementPlus.ElMessage.success('已复制');
+          } catch (e) {
+            ElementPlus.ElMessage.error('复制失败，请手动复制');
+          }
         }
         async function loadLogs() {
           try {
@@ -3136,6 +3199,7 @@
           contacts, contactsAt, contactsError, contactsFetching, selectedFriends, onlySpark, shownContacts,
           tokenDialog, tokenInput,
           fmt, loadAll, loadLogs, loadAlerts, sendTestAlert, loadContacts, fetchContacts, applySelection, progressPct, progressText, messageCount, friendCount,
+          sloganDate, sloganLoading, sloganPreview, loadSloganPreview, copyText,
           saveFriends, saveSettings, triggerRun, triggerStop,
           onFileChange, onFileRemove, uploadState, showTokenDialog, saveToken,
         };

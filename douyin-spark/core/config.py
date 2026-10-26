@@ -46,6 +46,9 @@ DEFAULT_CONFIG = {
         "llm_api_key": "",
         "llm_model": "",
     },
+    # True：发送时用内置生成器按「日期+好友」自动生成文案（messages 仍作兜底）
+    # False：只用手写的 messages 随机挑一条
+    "auto_slogan": False,
     "friends": [],              # 好友列表：聊天列表里显示的备注 / 昵称 / 抖音号
     "messages": ["🔥 续火花", "晚安，明天见", "今天也要开心哦"],
 }
@@ -96,6 +99,7 @@ def save_config(cfg: dict | None) -> dict:
         merged["manual_gap_max"] = merged["manual_gap_min"]
     merged["only_with_spark"] = bool(merged.get("only_with_spark", True))
     merged["refresh_contacts_before_send"] = bool(merged.get("refresh_contacts_before_send", True))
+    merged["auto_slogan"] = bool(merged.get("auto_slogan", False))
     if merged.get("friends_mode") not in ("list", "all_spark"):
         raise ValueError("friends_mode 只能是 list / all_spark")
 

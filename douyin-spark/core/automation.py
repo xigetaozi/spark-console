@@ -19,6 +19,7 @@ from playwright.sync_api import sync_playwright
 
 from .config import DATA_DIR, load_config
 from .runtime import load_runtime
+from . import slogan
 
 logger = logging.getLogger("douyin-spark")
 
@@ -677,6 +678,7 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
     if only_names is not None:
         friends = [f for f in friends if f in only_names]
     messages = cfg.get("messages") or ["🔥"]
+    auto_slogan = bool(cfg.get("auto_slogan", False))
     max_n = int(cfg.get("max_friends_per_run", 20) or 20)
     # 手动与定时用两套间隔：手动要秒级，定时要安全
     gap_key_min = "manual_gap_min" if fast else "send_gap_min"
@@ -820,7 +822,11 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
                     logger.info("收到停止指令，本轮在第 %s 人前中断", idx)
                     result["stopped"] = True
                     break
-                msg = random.choice(messages)
+                if auto_slogan:
+                    # 按「日期 + 好友名」生成稳定且互不重复的文案
+                    msg = slogan.generate(f"{slogan._today_key()}:{name}")
+                else:
+                    msg = random.choice(messages)
                 PROGRESS.update(current=name, phase="sending")
                 t0 = time.time()
                 ok, why = send_to_contact(page, name, msg, dry_run)

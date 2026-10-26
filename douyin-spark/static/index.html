@@ -1943,6 +1943,7 @@
             <div class="col">
           <el-card shadow="never">
             <div class="action-bar" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <template v-if="!status.readonly">
               <el-button type="primary" :loading="status.running" @click="triggerRun(false)">立即发送</el-button>
               <el-button type="danger" plain :disabled="!status.running" :loading="stopping" @click="triggerStop">停止本轮</el-button>
               <el-button :loading="status.running" @click="triggerRun(true)">干跑测试（不真实发送）</el-button>
@@ -1956,6 +1957,8 @@
                 <el-button>选择 state.json</el-button>
               </el-upload>
               <el-button type="success" :disabled="!uploadFile" @click="uploadState">上传登录态</el-button>
+              </template>
+              <el-tag v-else type="info" size="small">访客只读模式 · 无法修改任何内容</el-tag>
             </div>
             <div v-if="status.running" style="margin-top:14px;">
               <el-progress :percentage="progressPct" :stroke-width="8" :show-text="false" status="warning"></el-progress>
@@ -2133,7 +2136,7 @@
         <el-tab-pane label="好友与消息" name="friends">
           <el-card shadow="never">
             <div class="action-bar" style="margin-bottom:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-              <el-button type="primary" :loading="contactsFetching" @click="fetchContacts">获取聊天列表</el-button>
+              <el-button v-if="!status.readonly" type="primary" :loading="contactsFetching" @click="fetchContacts">获取聊天列表</el-button>
               <el-checkbox v-model="onlySpark" style="margin-right:4px;">只显示有火花的</el-checkbox>
               <span class="muted-hint">
                 <template v-if="contacts.length">显示 {{ shownContacts.length }} / 共 {{ contacts.length }} 个会话，最后更新 {{ fmt(contactsAt) }}</template>
@@ -2161,8 +2164,8 @@
                 </div>
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" @click="saveFriends">保存</el-button>
-                <el-button @click="applySelection">把勾选结果写入名单</el-button>
+                <el-button v-if="!status.readonly" type="primary" @click="saveFriends">保存</el-button>
+                <el-button v-if="!status.readonly" @click="applySelection">把勾选结果写入名单</el-button>
               </el-form-item>
             </el-form>
 
@@ -2318,7 +2321,7 @@
                 </el-form-item>
               </template>
               <el-form-item>
-                <el-button type="primary" @click="saveReplyCfg">保存对话配置</el-button>
+                <el-button v-if="!status.readonly" type="primary" @click="saveReplyCfg">保存对话配置</el-button>
                 <el-button @click="loadReplyCfg">重新读取</el-button>
               </el-form-item>
               <el-form-item label="人工介入边界">
@@ -2328,7 +2331,7 @@
               </el-form-item>
 
               <el-form-item>
-                <el-button type="primary" @click="saveSettings">保存</el-button>
+                <el-button v-if="!status.readonly" type="primary" @click="saveSettings">保存</el-button>
               </el-form-item>
             </el-form>
           </el-card>
@@ -2475,7 +2478,7 @@
         const token = ref(localStorage.getItem('ds_token') || '');
         const tokenInput = ref('');
         const tokenDialog = ref(false);
-        const status = reactive({ state_file_exists: false, session_status: 'unknown', running: false, last_run: null, next_run: null, history_count: 0, auth_required: true });
+        const status = reactive({ state_file_exists: false, session_status: 'unknown', running: false, last_run: null, next_run: null, history_count: 0, auth_required: true, readonly: false });
 
         /* 导航与页面标题（与顶部标签栏一一对应） */
         const PAGE_META = {

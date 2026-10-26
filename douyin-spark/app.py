@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -47,6 +47,9 @@ def _load_env() -> None:
 
 _load_env()
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "").strip()
+# 访客只读令牌：持有它只能查看（GET），不能改任何东西（POST/PUT/DELETE）。
+# 留空则关闭访客访问，和 AUTH_TOKEN 一样写在 .env 里。
+VISITOR_TOKEN = os.environ.get("VISITOR_TOKEN", "").strip()
 logger = setup_logging()
 
 run_lock = threading.Lock()
@@ -96,8 +99,10 @@ def _reply_loop() -> None:
 
 
 def _check_auth(token: str) -> None:
+    # 管理员令牌 或 访客令牌 都能通过读鉴权；访客的写权限由中间件统一拦截
     if AUTH_TOKEN and token != AUTH_TOKEN:
-        raise HTTPException(status_code=401, detail="访问令牌不正确")
+        if not (VISITOR_TOKEN and token == VISITOR_TOKEN):
+            raise HTTPException(status_code=401, detail="访问令牌不正确")
 
 
 def _start_run(dry: bool, only_names: list[str] | None = None, fast: bool = False) -> None:
@@ -227,6 +232,20 @@ app = FastAPI(title="Douyin Spark Keeper", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.middleware("http")
+async def visitor_readonly(request: Request, call_next):
+    """访客只读拦截（中间件层，覆盖所有 /api 写操作，未来新增接口也自动受保护）。
+
+    规则：请求带的是访客令牌（VISITOR_TOKEN）且方法为写操作时，直接 403。
+    GET/HEAD/OPTIONS 放行，让访客能正常读取数据。
+    """
+    if VISITOR_TOKEN:
+        token = request.headers.get("x-auth-token", "")
+        if token == VISITOR_TOKEN and request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
+            return JSONResponse(status_code=403, content={"detail": "访客只有只读权限，无法修改任何内容"})
+    return await call_next(request)
+
+
 class ConfigBody(BaseModel):
     config: dict
 
@@ -315,6 +334,8 @@ def api_status(token: str = Header(default="", alias="X-Auth-Token")) -> dict:
         "history_count": len(rt.get("history", [])),
         "progress": dict(automation.PROGRESS),
         "auth_required": bool(AUTH_TOKEN),
+        # 当前令牌是否为访客（只读）：前端据此隐藏所有写操作按钮
+        "readonly": bool(VISITOR_TOKEN and token == VISITOR_TOKEN),
         "state_expire_at": exp["at"],
         "state_expire_days": exp["days"],
         "state_expire_level": exp["level"],

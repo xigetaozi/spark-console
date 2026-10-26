@@ -1,0 +1,56 @@
+# ==================== 敏感与运行时数据（绝不提交）====================
+# 抖音登录态 / 账号配置 / 日志
+douyin-spark/data/
+!douyin-spark/data/.gitkeep
+douyin-spark/logs/
+logs/
+*.log
+
+# 环境变量与本地密钥
+.env
+.env.local
+local-key.txt
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# 备份文件
+*.bak
+*.bak-*
+*_bak_*
+_local-backup/
+*.tar
+*.tar.gz
+
+# 证书与截图（含好友昵称、面板信息）
+console/certs/
+console/shots/
+
+# ==================== WorkBuddy 项目数据（含对话记忆与凭据）====================
+.workbuddy/
+
+# ==================== 依赖与缓存 ====================
+.venv/
+__pycache__/
+*.py[cod]
+node_modules/
+
+# ==================== 系统垃圾 ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== 迁移包 / 临时产物 ====================
+续火花-迁移包*
+server-code.tar
+
+# ==================== 第三方资料与内部快照 ====================
+# gh_spark/ 是从其他开源项目抓取的 README，含他人版权内容，不随本仓库分发
+gh_spark/
+cancelled-tasks.json
+
+# 本地演示实例的数据（跑 demo 时自动生成）
+douyin-spark/demo-data/

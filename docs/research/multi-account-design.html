@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多账号自动续火花方案</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#151a22; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+    --tx:#e9edf5; --tx2:#a9b4c5; --tx3:#7d8a9e;
+    --ember:#ff7a45; --ember2:#ff9f43; --ok:#3ddc97; --warn:#ffc861; --bad:#ff6b6b; --blue:#5aa9ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(800px 460px at 88% -8%, rgba(255,122,69,.10), transparent 62%),
+      radial-gradient(700px 400px at 2% 106%, rgba(90,169,255,.06), transparent 60%),
+      var(--bg);
+    color:var(--tx);font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:52px 26px 92px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:28px}
+  .kicker{font-size:12.5px;letter-spacing:.18em;color:var(--ember);font-weight:600;text-transform:uppercase}
+  h1{font-size:29px;line-height:1.34;margin:12px 0 10px;font-weight:700;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--ember)}
+  .sub{color:var(--tx2);font-size:14.4px;max-width:820px}
+  h2{font-size:20px;margin:48px 0 6px;font-weight:700;padding-bottom:9px;border-bottom:1px solid var(--line)}
+  h2 .n{color:var(--ember);font-size:13.5px;font-weight:700;margin-right:9px}
+  .lead{color:var(--tx2);font-size:14px;margin:10px 0 16px}
+  h3{font-size:15.4px;margin:24px 0 8px;font-weight:650}
+  table{width:100%;border-collapse:collapse;font-size:13.2px;margin:10px 0;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#1a2130;color:var(--tx2);font-weight:600;font-size:12.2px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#1a2029}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  code.inl{background:#1d2432;padding:1px 6px;border-radius:4px;font-size:12.5px;
+    font-family:ui-monospace,Consolas,monospace;color:#c9d6e8}
+  pre{background:#080b10;border:1px solid var(--line2);border-radius:10px;padding:14px 16px;
+    overflow-x:auto;font-size:12.6px;line-height:1.72;color:#c6d2e3;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre}
+  .box{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:15px 18px;margin:15px 0}
+  .box p{margin:6px 0;color:var(--tx2);font-size:13.7px}
+  .box p b{color:var(--tx)}
+  .tip{border-left:3px solid var(--blue);background:#131a24}
+  .good{border-left:3px solid var(--ok);background:#131c18}
+  .warnbox{border-left:3px solid var(--bad);background:#1a1519}
+  .tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .t-ok{background:rgba(61,220,151,.14);color:#7ee2b8}
+  .t-warn{background:rgba(255,200,97,.13);color:#ffd489}
+  .t-bad{background:rgba(255,107,107,.13);color:#ff9d9d}
+  .t-info{background:rgba(90,169,255,.13);color:#8cc4ff}
+  ul.tight,ol.tight{margin:8px 0;padding-left:20px}
+  ul.tight li,ol.tight li{margin:5px 0;color:var(--tx2);font-size:13.7px}
+  ul.tight li b,ol.tight li b{color:var(--tx)}
+  .arch{background:#080b10;border:1px solid var(--line2);border-radius:12px;padding:18px;
+    font-family:ui-monospace,Consolas,monospace;font-size:12.4px;line-height:1.85;color:#c6d2e3;white-space:pre;overflow-x:auto}
+  .arch .hl{color:var(--ember2)}
+  .arch .dim{color:#5f7286}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.3px}
+  @media(max-width:760px){.wrap{padding:32px 15px 60px}h1{font-size:23px}table{font-size:12.2px}th,td{padding:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">设计与实施方案</div>
+  <h1>多账号<em>自动续火花</em>方案</h1>
+  <p class="sub">主账号保持登录不退出，在同一台服务器上并行运行多个账号，各自独立登录态、独立好友名单、独立定时与令牌，全部无人值守。方案已在你的服务器上落地并验证（账号 a、b 两个实例正在运行）。</p>
+</header>
+
+<h2><span class="n">01</span>为什么不能"退出登录还继续跑"</h2>
+<div class="box warnbox">
+  <p><b>"退出登录"和"后台继续运行"在逻辑上互斥。</b>程序靠 <code class="inl">state.json</code> 里的 cookie 代表"你是谁"，一旦抖音侧注销，这个文件立即失效，下一次执行会直接判定"登录态已过期"。</p>
+  <p>所以本方案不采用"切换"，而是<b>并存</b>：每个账号一个独立进程、一份独立凭证，互不影响。主账号全程不退出。</p>
+</div>
+
+<h2><span class="n">02</span>架构：一份代码 + N 份数据 + N 个进程</h2>
+<div class="arch"><span class="dim">┌─ 共享（只装一次）────────────────────────────┐</span>
+│  <span class="hl">/opt/douyin-spark</span>            代码 + Python 虚拟环境
+│  <span class="hl">/root/.cache/ms-playwright</span>  Chromium 内核（三账号共用，不重复下载）
+<span class="dim">└──────────────────────────────────────────────┘</span>
+        │                │                │
+        ▼                ▼                ▼
+<span class="hl">douyin-spark@a</span>    <span class="hl">douyin-spark@b</span>    <span class="hl">douyin-spark@c</span>      ← systemd 模板实例
+  端口 8000         端口 8001         端口 8002
+        │                │                │
+        ▼                ▼                ▼
+<span class="hl">/opt/douyin-spark-data/a</span>  .../b  .../c            ← 每账号独立数据目录
+  env(端口+令牌)              env
+  state.json(登录态)          state.json
+  config.json(好友/时间)      config.json
+  runtime.json  logs/        runtime.json  logs/</div>
+
+<p class="lead">关键改造只有一处：<code class="inl">core/config.py</code> 里的数据目录从硬编码改为可被 <code class="inl">SPARK_DATA_DIR</code> 环境变量覆盖。不设置该变量时行为与原来完全一致（向后兼容），所以现有部署不会受影响。</p>
+
+<h2><span class="n">03</span>账号并存方式</h2>
+<table>
+  <thead><tr><th>维度</th><th>主账号 a</th><th>新增账号 b / c …</th></tr></thead>
+  <tbody>
+    <tr><td>登录态</td><td><code class="inl">data/a/state.json</code>（不动）</td><td>各自扫码生成，互不覆盖</td></tr>
+    <tr><td>好友名单</td><td>17 人（已配置）</td><td>各自独立，必须重新勾选</td></tr>
+    <tr><td>发送时间</td><td>18:57（+0~30 分抖动）</td><td>必须错峰，见第 5 节</td></tr>
+    <tr><td>访问令牌</td><td>独立</td><td>每个账号一个，互不通用</td></tr>
+    <tr><td>故障影响</td><td colspan="2">进程级隔离：b 崩溃 / 内存超限 / 重启，均不影响 a</td></tr>
+    <tr><td>升级代码</td><td colspan="2">只在 <code class="inl">/opt/douyin-spark</code> 执行一次 <code class="inl">git pull</code>，所有账号同时生效</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">04</span>每日自动执行流程</h2>
+<table>
+  <thead><tr><th>阶段</th><th>系统做什么</th><th>失败时</th></tr></thead>
+  <tbody>
+    <tr><td>1. 触发</td><td>定时器按 <code class="inl">schedule_time</code> 触发，再随机延迟 0~N 分钟（抖动）</td><td>—</td></tr>
+    <tr><td>2. 读配置</td><td>读 <code class="inl">config.json</code>：好友名单、间隔、单次上限、文案池</td><td>名单为空则跳过本轮</td></tr>
+    <tr><td>3. 起浏览器</td><td>无头 Chromium 加载 <code class="inl">state.json</code>，打开 douyin.com/chat</td><td>凭证失效→标记过期，本轮终止</td></tr>
+    <tr><td>4. 逐个定位</td><td>在会话列表找到目标（最多重试 5 次），找不到则搜索兜底</td><td>记为失败，继续下一个</td></tr>
+    <tr><td>5. 收件人校验</td><td>确认右侧会话标题区出现目标昵称，才算切换成功</td><td>校验失败→不发，记为失败</td></tr>
+    <tr><td>6. 发送并确认</td><td>输入 → 回车 → 等输入框清空（8 秒）→ 未清空则重试 1 次</td><td>仍失败→记失败</td></tr>
+    <tr><td>7. 节奏控制</td><td>每人间隔 180~300 秒随机</td><td>—</td></tr>
+    <tr><td>8. 落账</td><td>写 <code class="inl">runtime.json</code> 与日志，<code class="inl">last_run</code> 记录成功/失败名单</td><td>—</td></tr>
+    <tr><td>9. 失败补发</td><td>本轮有失败 → 45 分钟后只补发失败者一次</td><td>补发仍失败→等人工</td></tr>
+    <tr><td>10. 熔断</td><td>检测到"操作频繁/安全验证" → 立即停止本轮</td><td>需人工降频</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">05</span>频率与时间编排（必须错峰）</h2>
+<p class="lead">单个账号 17 人 × 平均 4 分钟 ≈ 68 分钟。两个账号同时跑会抢 CPU 与内存，因此<b>相邻账号的起始时间必须大于上一轮的最长结束时间 + 15 分钟</b>。</p>
+<table>
+  <thead><tr><th>账号</th><th>发送时间</th><th>抖动</th><th>实际开始区间</th><th>预计结束区间</th></tr></thead>
+  <tbody>
+    <tr><td>a（主）</td><td class="num">18:57</td><td class="num">30 分</td><td class="num">18:57 ~ 19:27</td><td class="num">20:05 ~ 20:35</td></tr>
+    <tr><td>b</td><td class="num">21:00</td><td class="num">20 分</td><td class="num">21:00 ~ 21:20</td><td class="num">22:08 ~ 22:28</td></tr>
+    <tr><td>c（如需）</td><td class="num">22:45</td><td class="num">15 分</td><td class="num">22:45 ~ 23:00</td><td class="num">23:53 ~ 00:08</td></tr>
+  </tbody>
+</table>
+<div class="box tip">
+  <p><b>每日频率就是"一次"。</b>火花只要求当天有消息往来，多发无益反而增加风控暴露。不要因为"怕漏"而一天跑两轮。</p>
+  <p>好友数差异大时按行数调整：<b>预计时长 ≈ 人数 × 4 分钟</b>，据此倒推下一账号的起始时间。</p>
+</div>
+
+<h2><span class="n">06</span>容量与资源上限</h2>
+<table>
+  <thead><tr><th>状态</th><th>单实例内存</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>空载（等定时）</td><td class="num">约 60 MB</td><td>纯 Python 服务，不含浏览器</td></tr>
+    <tr><td>发送中</td><td class="num">400 ~ 700 MB</td><td>无头 Chromium 峰值</td></tr>
+    <tr><td>systemd 上限</td><td class="num">1200 MB</td><td><code class="inl">MemoryMax</code> 兜底，超限自动重启该实例，不拖垮整机</td></tr>
+  </tbody>
+</table>
+<div class="box good">
+  <p><b>你的机器（2 核 4G）建议 2~3 个账号，且必须错峰。</b>实测两个实例空载共占 593 MB，余量充足；但两个同时进入发送阶段，峰值叠加约 1.4 GB + 系统开销，仍可承受，只是 CPU 2 核会互相拖慢，导致单人耗时变长。</p>
+  <p>超过 3 个账号：先升到 2 核 8G，或按账号拆到不同机器。</p>
+</div>
+
+<h2><span class="n">07</span>异常处理矩阵</h2>
+<table>
+  <thead><tr><th>异常</th><th>检测方式</th><th>系统自动行为</th><th>你需要做什么</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>登录态过期</b><br><span style="color:var(--tx3);font-size:12px">最常见的"故障"</span></td>
+      <td>发送时判定未登录，<code class="inl">logged_out=true</code></td>
+      <td>本轮立即终止，不重试（重试无效），面板状态标红</td>
+      <td>本机重新扫码该账号 → 上传新 <code class="inl">state.json</code>，无需重启</td>
+    </tr>
+    <tr>
+      <td>单条发送失败</td>
+      <td>输入框未清空 / 找不到会话 / 校验不通过</td>
+      <td>失败者进入补发队列，45 分钟后重试一次</td>
+      <td>若次日仍失败，检查该好友是否改名或被删</td>
+    </tr>
+    <tr>
+      <td><b>触发限流</b></td>
+      <td>页面出现"操作频繁/安全验证"关键词</td>
+      <td>立刻停止本轮（不继续硬发），<code class="inl">rate_limited=true</code></td>
+      <td>把间隔调大（如 300~600 秒）、减少好友数，当天不再重试</td>
+    </tr>
+    <tr>
+      <td>进程崩溃</td>
+      <td>systemd 检测退出</td>
+      <td><code class="inl">Restart=always</code>，15 秒后自动重启；连续崩溃会进入 failed</td>
+      <td>failed 时看 <code class="inl">journalctl -u douyin-spark@a</code></td>
+    </tr>
+    <tr>
+      <td>内存超限</td>
+      <td>超过 1200 MB</td>
+      <td>该实例被 OOM 杀掉并自动重启（会中断当轮）</td>
+      <td>减少同时运行的账号数，或降低单次上限</td>
+    </tr>
+    <tr>
+      <td>磁盘/日志膨胀</td>
+      <td>—</td>
+      <td>已配置 logrotate：>5MB 或每日轮转，保留 7 份并压缩</td>
+      <td>无需处理；<code class="inl">df -h</code> 偶尔看一眼</td>
+    </tr>
+    <tr>
+      <td>抖音改版</td>
+      <td>大面积失败，全是"找不到会话/元素"</td>
+      <td>无（本轮全部失败）</td>
+      <td>先 <code class="inl">git pull</code> 看作者是否适配；未适配需改选择器</td>
+    </tr>
+    <tr>
+      <td>重复发送</td>
+      <td>同一天同一好友收到两条</td>
+      <td><b>当前版本无日内去重</b>，重复触发就会重复发</td>
+      <td>避免同一账号手动执行 + 定时执行撞车；建议后续补去重逻辑</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2><span class="n">08</span>运行状态提示</h2>
+<h3>一屏看全部账号</h3>
+<pre>sudo spark-status
+
+账号 端口 服务    登录态 下次执行         上轮结果
+--------------------------------------------------------------
+a    8000  active  正常   2026-10-23 18:57:00  成功17 失败0
+b    8001  active  未验证 2026-10-22 21:00:00  成功0 失败0</pre>
+
+<h3>三种查看方式</h3>
+<table>
+  <thead><tr><th>场景</th><th>方式</th></tr></thead>
+  <tbody>
+    <tr><td>日常扫一眼</td><td><code class="inl">sudo spark-status</code>（每个账号一行）</td></tr>
+    <tr><td>看某个账号详情</td><td>浏览器打开该账号面板（8000 / 8001…），概览页有状态、下次执行、上次成功失败名单</td></tr>
+    <tr><td>排障</td><td><code class="inl">journalctl -u douyin-spark@a -n 80 --no-pager</code>，或面板「日志」页</td></tr>
+  </tbody>
+</table>
+<div class="box tip">
+  <p><b>想让结果主动推给你</b>（企业微信/钉钉）需要改代码加 webhook，当前版本没有这个能力。一个不改代码的替代方案：加一条 cron，每天 23:30 跑 <code class="inl">spark-status</code> 把输出发到你的群机器人。需要的话我可以加。</p>
+</div>
+
+<h2><span class="n">09</span>日常操作手册</h2>
+<table>
+  <thead><tr><th>要做什么</th><th>命令 / 操作</th></tr></thead>
+  <tbody>
+    <tr><td>新增账号 c（端口 8002）</td><td><code class="inl">sudo spark-add-account c 8002</code> → 输出面板地址与令牌<br>然后：本机扫码 → 上传 state.json → 勾好友 → 设时间（错峰）</td></tr>
+    <tr><td>删除账号</td><td><code class="inl">sudo systemctl disable --now douyin-spark@c</code><br><code class="inl">sudo mv /opt/douyin-spark-data/c /root/archived-c</code>（归档而非删除）</td></tr>
+    <tr><td>暂停某账号（保留数据）</td><td><code class="inl">sudo systemctl stop douyin-spark@c</code>，恢复用 <code class="inl">start</code></td></tr>
+    <tr><td>换某账号的登录态</td><td>本机扫码该账号 → 面板「上传登录态」→ 覆盖即可，<b>其它账号不受影响</b></td></tr>
+    <tr><td>看某账号令牌</td><td><code class="inl">sudo cat /opt/douyin-spark-data/a/env</code></td></tr>
+    <tr><td>升级代码（所有账号）</td><td><code class="inl">cd /opt/douyin-spark && sudo git pull</code><br><code class="inl">sudo systemctl restart 'douyin-spark@*'</code><br>数据目录在 <code class="inl">/opt/douyin-spark-data</code>，pull 不会覆盖</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">10</span>三个风险，必须在扩大账号数前想清楚</h2>
+<div class="box warnbox">
+  <p><b>1. 同一 IP 跑多个抖音账号 = 关联风险（最重要）。</b>抖音对同出口 IP 的多账号操作很敏感，一旦判定关联，可能一封一串。主号 + 自己的小号风险尚可接受；<b>帮别人跑，风险会牵连到对方的账号</b>。</p>
+  <p><b>2. 他人账号的授权与凭据责任。</b><code class="inl">state.json</code> 等于对方账号的钥匙。帮朋友跑最好有明确同意；一旦泄露，责任在你。这也是我不建议把它做成收费 SaaS 的核心理由。</p>
+  <p><b>3. 登录态仍会过期。</b>每个账号每隔几天到几周就要有人重新扫一次码，<b>账号越多，这个人工成本越高</b>。这是所有方案都绕不开的硬成本，不是靠架构能解决的。</p>
+</div>
+
+<footer>
+  本方案已在你当前服务器（Ubuntu 24.04 / 2核4G）落地：账号 a 沿用原数据并迁移至统一结构，账号 b 已创建为空槽位等待扫码。代码改动仅 <code class="inl">core/config.py</code> 一处（数据目录支持环境变量，不设置时行为不变），原文件已备份为 <code class="inl">config.py.bak-single</code>。<br>
+  提醒：自动化发私信违反抖音社区公约，多账号同 IP 运行会放大关联风险，请自行评估并控制规模。
+</footer>
+
+</div>
+</body>
+</html>

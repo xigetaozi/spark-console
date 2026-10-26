@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抖音「续火花」开源项目调研 · GitHub</title>
+<style>
+  :root{
+    --bg:#0e1116; --bg2:#141922; --card:#161c26; --line:#242c3a; --line2:#2e3849;
+    --tx:#e7ebf2; --tx2:#a7b2c4; --tx3:#78859a;
+    --hot:#ff7a45; --hot2:#ffa06b; --blue:#5aa9ff; --green:#3ddc97; --amber:#ffcc66; --red:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:54px 28px 90px}
+  header{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:34px}
+  .kicker{font-size:12.5px;letter-spacing:.18em;color:var(--hot);text-transform:uppercase;font-weight:600}
+  h1{font-size:32px;line-height:1.3;margin:12px 0 10px;font-weight:700;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--hot)}
+  .sub{color:var(--tx2);font-size:14.5px;max-width:820px}
+  .meta{margin-top:16px;font-size:12.5px;color:var(--tx3);display:flex;gap:18px;flex-wrap:wrap}
+  .meta b{color:var(--tx2);font-weight:600}
+  h2{font-size:21px;margin:52px 0 6px;font-weight:700;letter-spacing:-.2px}
+  h2 .n{color:var(--hot);font-size:14px;font-weight:700;margin-right:10px;font-variant-numeric:tabular-nums}
+  .lead{color:var(--tx2);font-size:14px;margin:0 0 20px}
+  h3{font-size:16px;margin:26px 0 10px;font-weight:650}
+
+  .tier{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:18px 20px;margin:14px 0}
+  .tier.s{border-left:3px solid var(--hot)}
+  .tier.a{border-left:3px solid var(--blue)}
+  .tier.b{border-left:3px solid var(--amber)}
+  .tier.c{border-left:3px solid #5c6779}
+  .tier-h{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+  .tier-h .tag{font-size:12px;font-weight:700;padding:2px 9px;border-radius:5px;background:#22293a;color:var(--tx2);letter-spacing:.04em}
+  .tier.s .tag{background:rgba(255,122,69,.14);color:var(--hot2)}
+  .tier.a .tag{background:rgba(90,169,255,.14);color:#8cc4ff}
+  .tier.b .tag{background:rgba(255,204,102,.13);color:var(--amber)}
+  .tier p{margin:4px 0;color:var(--tx2);font-size:14px}
+  .tier p b{color:var(--tx)}
+  .pick{color:var(--tx);font-weight:600}
+  .pick s{text-decoration:none;color:var(--hot)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.3px;margin:10px 0 6px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#1a2130;color:var(--tx2);font-weight:600;font-size:12.3px;letter-spacing:.02em;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#1a2029}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .repo{font-weight:600;color:var(--tx);text-decoration:none;border-bottom:1px dotted var(--line2)}
+  .repo:hover{color:var(--hot2);border-color:var(--hot)}
+  .owner{color:var(--tx3);font-weight:400}
+  .star{color:var(--amber);font-weight:650}
+  .dim{color:var(--tx3);font-size:12.4px}
+  .ok{color:var(--green)}
+  .warn{color:var(--amber)}
+  .bad{color:var(--red)}
+  .pill{display:inline-block;padding:1px 7px;border-radius:4px;background:#222a3a;color:var(--tx2);font-size:11.6px;
+    margin:1px 3px 1px 0;white-space:nowrap}
+  .pill.hot{background:rgba(255,122,69,.14);color:var(--hot2)}
+  .pill.blue{background:rgba(90,169,255,.13);color:#8cc4ff}
+  .pill.green{background:rgba(61,220,151,.12);color:#7ee2b8}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .card{border:1px solid var(--line);border-radius:11px;background:var(--card);padding:16px 17px}
+  .card h4{margin:0 0 3px;font-size:14.6px;font-weight:650}
+  .card h4 a{color:var(--tx);text-decoration:none}
+  .card h4 a:hover{color:var(--hot2)}
+  .card .r1{font-size:12.2px;color:var(--tx3);margin-bottom:9px;font-variant-numeric:tabular-nums}
+  .card dl{margin:0;font-size:13.2px}
+  .card dt{color:var(--tx3);font-size:11.8px;letter-spacing:.04em;margin-top:7px}
+  .card dd{margin:1px 0 0;color:var(--tx2)}
+  .card dd b{color:var(--tx);font-weight:600}
+
+  .note{border:1px solid var(--line2);border-left:3px solid var(--red);background:#1a161a;
+    border-radius:9px;padding:14px 17px;margin:16px 0;font-size:13.6px;color:var(--tx2)}
+  .note b{color:#ffb3b3}
+  .tip{border:1px solid var(--line2);border-left:3px solid var(--blue);background:#141a24;
+    border-radius:9px;padding:14px 17px;margin:16px 0;font-size:13.6px;color:var(--tx2)}
+  .tip b{color:#9dcbff}
+
+  ol.rank{padding-left:20px;margin:10px 0}
+  ol.rank li{margin:7px 0;color:var(--tx2);font-size:14px}
+  ol.rank li b{color:var(--tx)}
+  ul.tight{margin:8px 0;padding-left:19px}
+  ul.tight li{margin:6px 0;color:var(--tx2);font-size:13.8px}
+  ul.tight li b{color:var(--tx)}
+  code{background:#1d2432;padding:1px 6px;border-radius:4px;font-size:12.5px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#c9d6e8}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.3px}
+  @media(max-width:820px){.cards{grid-template-columns:1fr}h1{font-size:25px}.wrap{padding:34px 16px 60px}
+    table{font-size:12.4px}th,td{padding:8px 8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">GitHub 开源项目调研</div>
+  <h1>抖音「续<em>火花</em>」自动化工具横向对比</h1>
+  <p class="sub">对 19 个相关仓库做了逐项核实：星数、最近提交时间、近 90 天提交量，并逐份阅读 README 确认「是否真的能自动发消息维持火花」「定时任务怎么做」「给谁用、有什么前提」。按实际情况给出推荐分层，而不是按 star 排序。</p>
+  <div class="meta">
+    <span><b>检索时间</b> 2026-10-22</span>
+    <span><b>数据来源</b> GitHub Search / Repos API + 各仓库 README</span>
+    <span><b>覆盖仓库</b> 19 个</span>
+    <span><b>口径</b> 近 90 天提交数为 API 实测</span>
+  </div>
+</header>
+
+<h2><span class="n">01</span>结论先行</h2>
+<p class="lead">如果你只想要一个答案，按使用场景直接选：</p>
+
+<div class="tier s">
+  <div class="tier-h"><span class="tag">S 级 · 首选</span><span style="color:var(--tx2);font-size:13.5px">长期维护、功能闭环、部署文档完整</span></div>
+  <p class="pick">① 要功能最全、能长期挂着 → <s>halfwaystudent/douyin-sparkflow</s>（574★，10-20 仍在提交，近 90 天 100+ 次提交）</p>
+  <p style="padding-left:16px"><span class="dim">Docker 五容器编排（面板 / 调度 / 扫码桌面 noVNC / Mihomo 代理 / 一次性任务），多账号、发送时间窗口、限流间隔、一言与节日模板全都有。代价是部署最重，且许可证为 PolyForm 非商业。</span></p>
+  <p class="pick">② 要开箱即用又不想背非商业许可 → <s>2061360308/DouYinSparkFlow</s>（415★，10-16，100+ 次提交，MIT）</p>
+  <p style="padding-left:16px"><span class="dim">图形化客户端 + Docker + 挂机宝三形态，装完点几下就能跑，对不熟命令行的用户最友好；作者文档站与 QQ 群都在持续维护。</span></p>
+</div>
+
+<div class="tier a">
+  <div class="tier-h"><span class="tag">A 级 · 场景最优</span><span style="color:var(--tx2);font-size:13.5px">某一方面明显更强，值得为它妥协</span></div>
+  <p><b>没有服务器、想让别人机器跑</b> → <code>unmev/douyin-auto-fire</code>（410★）：GitHub Actions / Docker / systemd / Windows 计划任务四种跑法，支持文字 + 图片 + 抖音原生表情，带 Dry Run、防重复、钉钉与通用 Webhook 通知，是"零服务器"路线里工程完成度最高的。</p>
+  <p><b>想要代码干净、好改</b> → <code>Xiaowu-0916/douyin-spark</code>（76★）：FastAPI + Playwright + APScheduler 单服务，一个 <code>deploy.sh</code> 上 Debian/Ubuntu，1 核 1G 可跑，发送有三段校验、失败 45 分钟补发、命中"操作频繁"立刻熔断，是同类里防护逻辑写得最细的。</p>
+  <p><b>需要给"从没聊过天"的好友发首条</b> → <code>diyiqiuye/douyin-keeper</code>（21★）：在 Xiaowu 版基础上加了 creator 创作者中心通道，consumer 通道发不了的新好友也能处理。</p>
+</div>
+
+<div class="tier b">
+  <div class="tier-h"><span class="tag">B 级 · 可用但有短板</span><span style="color:var(--tx2);font-size:13.5px">能跑，但门槛、平台限制或工程质量有折扣</span></div>
+  <p><b>只开浏览器、不装环境（油猴脚本）</b> → <code>dr-190/ScriptCat-Douyin-Fire-Helper</code>（127★）：装 Tampermonkey/ScriptCat 后在 douyin.com/chat 上跑，功能其实很丰富（火花天数占位符、按周几配专属文案、跨天随机时间、10 分钟重试）。但需浏览器常开，且 README 主推作者的付费云平台，开源与商业混合。</p>
+  <p><b>macOS 原生应用</b> → <code>lazymicezhu/DouyinFire</code>（54★）：唯一把"发送结果不确定"做成状态机的项目（已发送/已跳过/未发送/待核实），睡眠唤醒后 180 分钟补跑窗口；仅 macOS，且要自己从源码 build。</p>
+  <p><b>Windows 桌面双击即用</b> → <code>baiyingawa/AutoDouyinSpark</code>（18★）：Electron + React 桌面端，8 路并发、火花天数趋势图、发送截图回放、Cookie 到期邮件提醒。</p>
+  <p><b>前后端分离、想接自己系统</b> → <code>DkoBot/TikTokAutoSparkWeb</code>（94★）：Vue3 管理端 + FastAPI 后端（9844 端口），接口清晰；但默认口令 <code>admin/123456</code> 必须改，且没有一键部署脚本。</p>
+</div>
+
+<div class="tier c">
+  <div class="tier-h"><span class="tag">C 级 · 不建议新用</span></div>
+  <p><b>已自认失效</b> → <code>bling-yshs/douyin-auto-spark</code>（103★）：工程规范最好（TS + 类型检查 + lint + Docker），但仓库描述直接写了"已被风控失效"，README 表格里 GitHub Actions 方式标注"抖音风控严重，基本不可用"，最后提交停在 09-16。可读性值得学，直接拿来用价值低。</p>
+  <p><b>手机端脚本（AutoJS6）</b> → <code>KID-1912/autojs6-douyin-sendMessage</code>（84★，2024-03 后无更新）、<code>COLDESTBOW30654/Automatic-spark-renewal</code>（4★）：免 root 用无障碍权限在手机上定时发消息，适合"完全不想开电脑"的人，但两年未更新、依赖界面元素定位，抖音一改版就废。</p>
+</div>
+
+<h2><span class="n">02</span>主对比表（8 个值得认真考虑的项目）</h2>
+<p class="lead">"近 90 天提交"为 GitHub API 实测值；<code>&gt;100</code> 表示超过单页上限。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>项目</th><th>Star</th><th>最近提交</th><th>近90天</th><th>技术栈</th><th>定时方式</th><th>消息能力</th><th>许可</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a class="repo" href="https://github.com/halfwaystudent/douyin-sparkflow">douyin-sparkflow</a><br><span class="owner">halfwaystudent</span></td>
+      <td class="num star">574</td><td class="num">2026-10-20</td><td class="num ok">&gt;100</td>
+      <td>Python 3.10+ / FastAPI / Playwright / Docker Compose</td>
+      <td>容器内 scheduler + 时间窗口 + 20 分钟间隔</td>
+      <td>文本、一言、节日祝福、自定义模板</td>
+      <td class="bad">PolyForm 非商业</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/2061360308/DouYinSparkFlow">DouYinSparkFlow</a><br><span class="owner">2061360308</span></td>
+      <td class="num star">415</td><td class="num">2026-10-16</td><td class="num ok">&gt;100</td>
+      <td>Python 3.8+ / CloakBrowser(Playwright) / 桌面 GUI</td>
+      <td>应用内定时 + Docker + 挂机宝常驻</td>
+      <td>文本、一言、AI 陪聊</td>
+      <td class="ok">MIT</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/unmev/douyin-auto-fire">douyin-auto-fire</a><br><span class="owner">unmev</span></td>
+      <td class="num star">410</td><td class="num">2026-09-12</td><td class="num">80</td>
+      <td>Python 3.11+ / Playwright / Chromium</td>
+      <td>GH Actions、Docker Cron、systemd Timer、Windows 计划任务</td>
+      <td>文本、图片、原生表情、随机候选</td>
+      <td class="bad">PolyForm 非商业</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/dr-190/ScriptCat-Douyin-Fire-Helper">ScriptCat-Douyin-Fire-Helper</a><br><span class="owner">dr-190</span></td>
+      <td class="num star">127</td><td class="num">2026-10-02</td><td class="num">6</td>
+      <td>JavaScript 用户脚本 + 本地调度器</td>
+      <td>脚本内随机时间 + 外部调度器 HTTP 回调</td>
+      <td>一言 / TXTAPI / 天数占位符 / 周几专属文案</td>
+      <td class="dim">仓库有 LICENSE</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/DkoBot/TikTokAutoSparkWeb">TikTokAutoSparkWeb</a><br><span class="owner">DkoBot</span></td>
+      <td class="num star">94</td><td class="num">2026-10-14</td><td class="num">5</td>
+      <td>Vue3 + Element Plus 前端 / FastAPI 后端 / Playwright</td>
+      <td>后端每日定时任务（可增删改时间）</td>
+      <td>自定义文本 / 每日名言</td>
+      <td class="ok">MIT</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/Xiaowu-0916/douyin-spark">douyin-spark</a><br><span class="owner">Xiaowu-0916</span></td>
+      <td class="num star">76</td><td class="num">2026-08-20</td><td class="num dim">—</td>
+      <td>Python / FastAPI / Playwright / APScheduler</td>
+      <td>APScheduler 固定时间 + 随机抖动窗口</td>
+      <td>文本 + 文案库随机（暂不支持图片）</td>
+      <td class="ok">MIT</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/lazymicezhu/DouyinFire">DouyinFire</a><br><span class="owner">lazymicezhu</span></td>
+      <td class="num star">54</td><td class="num">2026-10-10</td><td class="num">4</td>
+      <td>Python 3.13 / Playwright / macOS 原生打包</td>
+      <td>每日定时 + 睡眠唤醒 180 分钟补跑</td>
+      <td>文本，私聊与群聊均可</td>
+      <td class="dim">仓库有 LICENSE</td>
+    </tr>
+    <tr>
+      <td><a class="repo" href="https://github.com/diyiqiuye/douyin-keeper">douyin-keeper</a><br><span class="owner">diyiqiuye</span></td>
+      <td class="num star">21</td><td class="num">2026-08-22</td><td class="num dim">—</td>
+      <td>Python / FastAPI / Playwright（Xiaowu 版二开）</td>
+      <td>APScheduler + 45 分钟失败补发</td>
+      <td>文本；consumer + creator 双通道</td>
+      <td class="ok">MIT</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2><span class="n">03</span>重点项目的功能边界</h2>
+<p class="lead">这一节只写"README 里能核实的"，以及明确写出来的限制。</p>
+
+<div class="cards">
+
+  <div class="card">
+    <h4><a href="https://github.com/halfwaystudent/douyin-sparkflow">halfwaystudent / douyin-sparkflow</a></h4>
+    <div class="r1">574★ · 2026-10-20 · 90 天 100+ 提交 · 谱系：与 2061360308 版同源重构</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能</b>。扫码登录 → 刷新好友列表 → 勾选目标 → 按时间窗口自动发送，面板有"今日还差几个火花"与逐条发送明细。</dd>
+      <dt>定时任务</dt>
+      <dd><b>能，且是容器化的</b>：独立 scheduler 容器跑 <code>main.py --doTask</code>，配置里可设 10–18 点窗口、每 20 分钟一轮；另有一次性 task 服务。</dd>
+      <dt>技术实现</dt>
+      <dd>FastAPI 面板 + Playwright 浏览器自动化 + 可选 Node 协议发送通道（<code>core/protocol_sender.mjs</code>）+ Mihomo 代理（直连优先、失败回退）+ noVNC 扫码桌面。</dd>
+      <dt>使用条件</dt>
+      <dd>Docker 与 Compose；2 核 2G 以上；首次需在 noVNC 里扫码（远程服务器要 SSH 隧道到 8788）；首次访问要自建管理员密码。</dd>
+      <dt>限制</dt>
+      <dd>部署链路最长（代理、端口绑定、反向代理都要顾）；作者明确"不保证规避风控"；<b>2026-09 已主动移除 GitHub Actions 真实发送工作流</b>，理由是机房 IP 极易触发风控；许可证禁止商用、且不接受外部 PR。</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h4><a href="https://github.com/2061360308/DouYinSparkFlow">2061360308 / DouYinSparkFlow</a></h4>
+    <div class="r1">415★ · 2026-10-16 · 90 天 100+ 提交 · MIT</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能</b>。多账号 × 多目标，目标可按昵称或抖音号查找，支持一言随机文本与 AI 陪聊，避免每天同一句话。</dd>
+      <dt>定时任务</dt>
+      <dd><b>能</b>。应用内定时，适合装在挂机宝或个人电脑上开机静默执行；也提供 Docker 镜像给无头服务器。</dd>
+      <dt>技术实现</dt>
+      <dd>Python + CloakBrowser（Playwright 封装，作者强调"降低被判定为机器"的概率）操作 douyin.com/chat，外层套可视化应用。</dd>
+      <dt>使用条件</dt>
+      <dd>Python 3.8+ 或直接用打包好的图形界面 / Docker；需要一台能长期开机的机器；详细图文教程在作者站 <code>oilu.cn</code>。</dd>
+      <dt>限制</dt>
+      <dd>核心说明放在站外，仓库 README 较薄；AI 陪聊需自行配置模型；<b>社区里有多份魔改分支</b>（BTHawake、cosinXx），选主仓库更稳。</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h4><a href="https://github.com/unmev/douyin-auto-fire">unmev / douyin-auto-fire</a></h4>
+    <div class="r1">410★ · 2026-09-12 · 90 天 80 提交 · PolyForm 非商业</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能，且消息类型最多</b>：文字、PNG/JPG/GIF/WebP 图片、抖音原生表情；多候选随机挑选；多好友批量。</dd>
+      <dt>定时任务</dt>
+      <dd><b>四种</b>：GitHub Actions（无需服务器，最多 5 个账号）、Docker Cron（官方镜像 <code>ghcr.io/unmev/douyin-auto-fire</code>）、systemd Timer、Windows 任务计划程序。</dd>
+      <dt>技术实现</dt>
+      <dd>Python 3.11 + Playwright/Chromium；Cookie 或 Storage State 注入登录态；带 Dry Run、发送历史去重、失败时保存截图与 Playwright Trace。</dd>
+      <dt>使用条件</dt>
+      <dd>先用 Cookie-Editor 导出 Cookie（或扫码脚本生成 storage-state）；配置 <code>config.json</code>；建议先 1 账号 1 好友 1 条消息跑 Dry Run。</dd>
+      <dt>限制</dt>
+      <dd>作者自述 GitHub-hosted Runner / 云服务器网络可能触发安全验证；Cookie 失效需本人重新验证；<b>近 40 天无新提交</b>，比 S 级两位明显放缓。</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h4><a href="https://github.com/Xiaowu-0916/douyin-spark">Xiaowu-0916 / douyin-spark</a></h4>
+    <div class="r1">76★ · 2026-08-20 · MIT · 被 diyiqiuye 等二次开发</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能</b>。网页端从聊天列表自动读出好友（含各自火花天数），勾选即用；文案库随机 + 好友间随机间隔。</dd>
+      <dt>定时任务</dt>
+      <dd><b>能</b>。APScheduler 每日定时（默认 21:00）+ 随机时间窗口；失败好友 45 分钟后自动补发一次，每天最多一次。</dd>
+      <dt>技术实现</dt>
+      <dd>FastAPI + Playwright + APScheduler；本机 <code>extract_cookie.py</code> 扫码导出 <code>state.json</code>，服务器只复用登录态（避免机房 IP 异地登录）；systemd 托管。</dd>
+      <dt>防误发设计（同类最细）</dt>
+      <dd>点击后校验右侧会话标题才算切对人；输入框文字离开才算发送成功；识别"操作频繁/安全验证"立即熔断本轮。</dd>
+      <dt>限制</dt>
+      <dd><b>只支持纯文本</b>（作者把图片放进了路线图）；登录态几天到几周过期需重扫；1G 内存机必须靠脚本自动建 swap。</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h4><a href="https://github.com/dr-190/ScriptCat-Douyin-Fire-Helper">dr-190 / ScriptCat-Douyin-Fire-Helper</a></h4>
+    <div class="r1">127★ · 最近提交 2026-10-02 · 90 天 6 提交</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能</b>。在抖音聊天页自动解析会话列表、可视化多选批量发送，支持 <code>[天数]</code> 火花天数占位符与按周一至周日配置专属文案。</dd>
+      <dt>定时任务</dt>
+      <dd><b>能，但要配外部调度器</b>：脚本内做跨天随机时间与 10 分钟智能重试，作者另提供"调度器管理器"本地后端，用 HTTP 回调实现 7×24 无人值守。</dd>
+      <dt>技术实现</dt>
+      <dd>Tampermonkey / ScriptCat 用户脚本（浏览器内 JS + MutationObserver + 日志分片存储），非无头浏览器方案。</dd>
+      <dt>使用条件</dt>
+      <dd>装脚本管理器、保持浏览器与 chat 页面常开（或靠调度器定时拉起）；需自己部署调度器才有真正的"无人值守"。</dd>
+      <dt>限制</dt>
+      <dd>README 首屏即导向作者 <b>1.5 元/月付费云平台</b>，开源与商业服务混合；v2026.10.02 起把 Chat 与 Creator 页面拆开，<b>Creator 版尚未发布</b>；近 90 天仅 6 次提交。</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h4><a href="https://github.com/DkoBot/TikTokAutoSparkWeb">DkoBot / TikTokAutoSparkWeb</a></h4>
+    <div class="r1">94★ · 2026-10-14 · 90 天 5 提交 · MIT</div>
+    <dl>
+      <dt>能否自动发消息维持火花</dt>
+      <dd><b>能</b>。好友列表显示头像与火花天数，支持搜索、实时刷新、一键发送。</dd>
+      <dt>定时任务</dt>
+      <dd><b>能</b>。为好友创建每日定时任务，可自定义消息内容、修改执行时间、删除任务，首页有最近任务快捷入口。</dd>
+      <dt>技术实现</dt>
+      <dd>Vue3 + Element Plus + Pinia + Vite 管理端；FastAPI 后端（默认 9844）；登录支持扫码 / 手机号 / Base64 Cookie 三种；Playwright 驱动。</dd>
+      <dt>使用条件</dt>
+      <dd>Node 16+ 与 Python 3.8+ 分别起前后端，Nginx 把 <code>/api/</code> 反代到 9844；Chrome/Chromium 必装。</dd>
+      <dt>限制</dt>
+      <dd><b>默认管理员 <code>admin/123456</code>，务必先改</b>；无部署脚本，README 主要讲前端；后端能力需读源码确认。</dd>
+    </dl>
+  </div>
+
+</div>
+
+<h2><span class="n">04</span>其余仓库（快速定位）</h2>
+<p class="lead">多数是上面几个项目的分叉或衍生，价值在于"补一个特定功能"。</p>
+
+<table>
+  <thead><tr><th>项目</th><th>Star</th><th>最近提交</th><th>定位与差异点</th></tr></thead>
+  <tbody>
+    <tr><td><a class="repo" href="https://github.com/Yuriz132/douyin-cloud-streak">Yuriz132/douyin-cloud-streak</a></td><td class="num star">61</td><td class="num">2026-09-10</td><td>本质是<b>面向零基础的长教程 + 源码</b>（含领服务器、双击部署、手机扫码全流程），被 Xiaowu 系多个项目列为参考。适合完全不懂服务器的人照做一遍。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/KID-1912/autojs6-douyin-sendMessage">KID-1912/autojs6-douyin-sendMessage</a></td><td class="num star">84</td><td class="num bad">2024-03-15</td><td>手机端 AutoJS6，免 root，定时发消息与表情，支持解锁与关弹窗。<b>两年未更新</b>，只适合当手机方案的参考。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/xuezhangjam/DouyinSparkAssistant">xuezhangjam/DouyinSparkAssistant</a></td><td class="num star">22</td><td class="num">2026-09-28</td><td>Linux GTK4 原生桌面 + 托盘，坐标随机偏移/轨迹阻尼防风控，验证码雷达可人工接管；<b>定位是"批量代续"商业运维</b>，个人自用偏重。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/baiyingawa/AutoDouyinSpark">baiyingawa/AutoDouyinSpark</a></td><td class="num star">18</td><td class="num">2026-09-13</td><td>Electron + React 桌面端，8 路并发、火花天数趋势图、发送截图回放、Cookie 到期邮件、Windows 计划任务。版本迭代很密（v3.1.9）。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/HRuiCcc/dy-xuhuohua">HRuiCcc/dy-xuhuohua</a></td><td class="num star">15</td><td class="num">2026-09-08</td><td>同 FastAPI 谱系但内建扫码登录，playwright-stealth + WebGL 指纹伪装、会话池上限 5、执行后重排下次时间的调度器，<b>REST API 文档最完整</b>。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/BTHawake/DouYinSpark-ALL">BTHawake/DouYinSpark-ALL</a></td><td class="num star">12</td><td class="num">2026-08-21</td><td>DouYinSparkFlow 改版，<b>独家支持群聊续火花</b>，带在线配置生成器，GitHub Actions 每天 5:00 / 14:00 自动跑。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/cosinXx/DouyinAuto-SparkFlow">cosinXx/DouyinAuto-SparkFlow</a></td><td class="num star">10</td><td class="num">2026-09-25</td><td>2061360308 版魔改：Web 控制台、火花预警、多主题、任务完成自动重启后端。<b>Mac 已测试，Windows 未充分测试</b>。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/wydddddcool/douyin-spark">wydddddcool/douyin-spark</a></td><td class="num star">9</td><td class="num">2026-07-06</td><td>Flask + Playwright，接多家 AI 生成消息、API key 机器绑定加密。作者自述仍在与反爬对抗，<b>headless 扫码会拿到"假二维码"</b>，须本机扫码再上传 state。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/MOUMAN888/douyin-spark-auto-renew">MOUMAN888/douyin-spark-auto-renew</a></td><td class="num star">5</td><td class="num">2026-04-25</td><td>单文件 Selenium + Edge，直接改代码里的好友列表与元素类名，带邮件提醒。<b>教学性质</b>，抖音改版需自己改 CSS 类名。</td></tr>
+    <tr><td><a class="repo" href="https://github.com/COLDESTBOW30654/Automatic-spark-renewal">COLDESTBOW30654/Automatic-spark-renewal</a></td><td class="num star">4</td><td class="num">2026-08-21</td><td>AutoJS6 手机脚本，同时支持抖音与快手，需无障碍 + 自启动 + 可选 Shizuku/Root；有视频教程，适合纯手机党。</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">05</span>横向看出来的四件事</h2>
+
+<h3>1. 技术路线只有四条，选路线比选项目重要</h3>
+<ul class="tight">
+  <li><b>桌面/服务器浏览器自动化</b>（Playwright / Selenium）——占绝对主流，稳定性和可控性最好，代价是要一台常开机器。S/A 级项目全在这条线上。</li>
+  <li><b>GitHub Actions 无服务器</b>——最省事，但机房 IP 是硬伤。多个作者已用行动承认：halfwaystudent 直接删掉了 GHA 发送工作流，bling-yshs 在 README 里给 GHA 打"基本不可用"。</li>
+  <li><b>油猴脚本</b>——不装环境，但必须浏览器常开，适合本来就让电脑不关的人（dr-190）。</li>
+  <li><b>手机无障碍（AutoJS6）</b>——设备最省，但纯靠界面元素定位，最脆弱，且主力项目已停更。</li>
+</ul>
+
+<h3>2. 没有一个项目能"装完就不用管"</h3>
+<p style="color:var(--tx2);font-size:14px;margin:6px 0">所有项目都依赖抖音网页版的登录态（Cookie / storage_state），有效期普遍是<b>几天到几周</b>。过期后必须本人重新扫码——这是抖音服务端的策略，不是代码缺陷（wydddddcool 的 README 把这点写得很直白）。所以评估时真正该看的是"掉线后恢复有多麻烦"：Xiaowu / diyiqiuye 是网页标红再上传一个 json；halfwaystudent 与 HRuiCcc 可以在面板里直接重新扫码，明显更省事。</p>
+
+<h3>3. Star 数会骗人，同源代码很多</h3>
+<p style="color:var(--tx2);font-size:14px;margin:6px 0">这次检索到的 19 个仓库里，至少能看出两条明显谱系：<b>2061360308 系</b>（halfwaystudent 的内部目录仍叫 DouYinSparkFlow，BTHawake、cosinXx 明确标注"由它修改而来"）与 <b>FastAPI 系</b>（Yuriz132 教程 → Xiaowu-0916 → diyiqiuye / HRuiCcc）。同源项目之间的差异往往只是皮肤和补丁，跨谱系比较才有意义。另外 star 高不等于现在能用：103★ 的 bling-yshs 已经自认失效，84★ 的 KID-1912 停在 2024 年。</p>
+
+<h3>4. 许可证差异会直接影响你能不能商用</h3>
+<ul class="tight">
+  <li><b>PolyForm Noncommercial 1.0.0</b>：halfwaystudent、unmev——个人学习自用可以，<b>收费服务、代运营、客户账号管理、商业账号维护全部禁止</b>，需要单独书面授权。</li>
+  <li><b>MIT</b>：2061360308、Xiaowu、diyiqiuye、DkoBot、BTHawake、cosinXx——最宽松，二次开发限制最少。</li>
+  <li><b>GPL-3.0</b>：bling-yshs——衍生分发需同样开源。</li>
+</ul>
+
+<div class="note">
+  <b>必须说清的风险。</b>以上所有项目都通过自动化手段发私信，这与抖音社区公约中"未经平台允许使用自动化手段发消息"的规定相冲突，多位作者在 README 里明确写了可能导致<b>限流、功能限制、账号封禁</b>。此外 <code>state.json</code> / Cookie 等同于账号凭据，一旦泄露等于账号被接管——不要提交到公开仓库，也不要用来源不明的"代部署"服务。项目方普遍建议：只操作本人账号、少量好友、每天一条、先用小号试。
+</div>
+
+<h2><span class="n">06</span>怎么选：一份决策清单</h2>
+<ol class="rank">
+  <li><b>我有国内云服务器 / NAS，愿意花半小时部署</b> → 先试 <b>halfwaystudent/douyin-sparkflow</b>；如果嫌 Docker 五容器太重，退到 <b>2061360308/DouYinSparkFlow</b> 的 Docker 镜像。</li>
+  <li><b>我想要代码干净、能自己改，或者要接自己的系统</b> → <b>Xiaowu-0916/douyin-spark</b>（单服务、deploy.sh 一把梭）或 <b>HRuiCcc/dy-xuhuohua</b>（内建扫码 + REST API 文档齐全）。两者都 MIT。</li>
+  <li><b>我没有服务器，电脑也不能常开</b> → <b>unmev/douyin-auto-fire</b> 的 GitHub Actions；但要接受"可能被要求验证码、可能发不出去"的概率，并且别把主账号的 Cookie 放上去。这是所有方案里唯一真正零成本的，也是风控暴露面最大的。</li>
+  <li><b>我电脑本来就常开，只想装个脚本</b> → <b>dr-190</b> 的油猴脚本（Chrome 常开 + chat 页面）比装 Python 环境省事得多。</li>
+  <li><b>我只用 Windows 桌面</b> → <b>baiyingawa/AutoDouyinSpark</b>（双击安装包）或 2061360308 的图形化版本。</li>
+  <li><b>我只用 macOS</b> → <b>lazymicezhu/DouyinFire</b>，唯一对"发送结果不确定"做了显式状态管理的项目，最不容易出现"以为发了其实没发"。</li>
+  <li><b>我还要给群聊续火花</b> → <b>BTHawake/DouYinSpark-ALL</b>（群聊支持）或 <b>lazymicezhu/DouyinFire</b>（私聊/群聊都支持）。</li>
+  <li><b>我完全没有电脑，只有手机</b> → AutoJS6 系（COLDESTBOW30654 有抖音+快手双版本），但要做好"抖音一改版就失效"的心理准备。</li>
+</ol>
+
+<div class="tip">
+  <b>一个实用建议：先用小号 + 1 个好友 + 1 条纯文本消息跑通整条链路，再扩到主账号。</b>所有项目都提供"干跑 / Dry Run / 模拟演练"模式（unmev 的 <code>Dry Run</code>、Xiaowu 的"干跑测试"、diyiqiuye 的"模拟运行"、HRuiCcc 的"模拟演练"），先用它确认能正确定位到好友、不会发错人，这一步能省掉大部分翻车。
+</div>
+
+<footer>
+  数据采集于 2026-10-22，通过 GitHub Search API、Repos API、/commits 接口与各仓库 README 原文核实；star 数与提交时间会持续变化，选型前建议再确认一次仓库首页状态。文中所有功能描述均来自项目自述，未经在真实账号上逐一实测；"能否自动发消息"指项目声明的能力，实际可用性受抖音网页版改版与风控策略影响。
+</footer>
+
+</div>
+</body>
+</html>

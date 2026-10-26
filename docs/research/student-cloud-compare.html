@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>腾讯云 / 阿里云 / 华为云 学生优惠对比</title>
+<style>
+  :root{
+    --bg:#0e1116; --bg2:#131820; --card:#161c26; --line:#242c3a; --line2:#313b4d;
+    --tx:#e7ebf2; --tx2:#a7b2c4; --tx3:#78859a;
+    --hot:#ff7a45; --hot2:#ffa06b; --blue:#5aa9ff; --green:#3ddc97; --amber:#ffcc66; --red:#ff6b6b;
+    --txc:#4ea8ff; --ali:#ff8a3d; --hw:#e05c5c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto;padding:52px 26px 92px}
+  header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:30px}
+  .kicker{font-size:12.5px;letter-spacing:.18em;color:var(--hot);font-weight:600;text-transform:uppercase}
+  h1{font-size:30px;line-height:1.32;margin:12px 0 10px;font-weight:700;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--hot)}
+  .sub{color:var(--tx2);font-size:14.5px;max-width:840px}
+  .facts{margin-top:16px;display:flex;gap:9px;flex-wrap:wrap}
+  .fact{font-size:12.4px;color:var(--tx2);background:var(--bg2);border:1px solid var(--line);padding:4px 11px;border-radius:20px}
+  .fact b{color:var(--tx);font-weight:600}
+  h2{font-size:20.5px;margin:50px 0 6px;font-weight:700;letter-spacing:-.2px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+  h2 .n{color:var(--hot);font-size:13.5px;font-weight:700;margin-right:9px;font-variant-numeric:tabular-nums}
+  .lead{color:var(--tx2);font-size:14px;margin:10px 0 16px}
+  h3{font-size:15.6px;margin:24px 0 8px;font-weight:650}
+
+  table{width:100%;border-collapse:collapse;font-size:13.2px;margin:10px 0 8px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#1a2130;color:var(--tx2);font-weight:600;font-size:12.2px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#1a2029}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .v-tx{color:var(--txc);font-weight:600}
+  .v-ali{color:var(--ali);font-weight:600}
+  .v-hw{color:var(--hw);font-weight:600}
+  .price{color:var(--hot2);font-weight:650;font-variant-numeric:tabular-nums}
+  .old{color:var(--tx3);text-decoration:line-through;font-size:12.2px}
+  .dim{color:var(--tx3);font-size:12.2px}
+  .tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .tag.best{background:rgba(61,220,151,.14);color:#7ee2b8}
+  .tag.ok{background:rgba(90,169,255,.13);color:#8cc4ff}
+  .tag.warn{background:rgba(255,204,102,.13);color:var(--amber)}
+  .tag.no{background:rgba(255,107,107,.13);color:#ff9d9d}
+  .tag.na{background:#252d3b;color:#93a0b4}
+
+  .box{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:16px 18px;margin:16px 0}
+  .box h4{margin:0 0 8px;font-size:14.4px;font-weight:650}
+  .box p{margin:6px 0;color:var(--tx2);font-size:13.7px}
+  .box p b{color:var(--tx)}
+  .good{border-left:3px solid var(--green);background:#131c18}
+  .warnbox{border-left:3px solid var(--red);background:#1a1519}
+  .tip{border-left:3px solid var(--blue);background:#131a24}
+  ul.tight,ol.tight{margin:8px 0;padding-left:20px}
+  ul.tight li,ol.tight li{margin:6px 0;color:var(--tx2);font-size:13.7px}
+  ul.tight li b,ol.tight li b{color:var(--tx)}
+  code.inl{background:#1d2432;padding:1px 6px;border-radius:4px;font-size:12.5px;
+    font-family:ui-monospace,Consolas,monospace;color:#c9d6e8}
+  .bar{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:13.2px}
+  .bar .name{width:150px;color:var(--tx2);flex-shrink:0}
+  .bar .track{flex:1;background:#1d2432;border-radius:4px;height:20px;position:relative;overflow:hidden}
+  .bar .fill{height:100%;border-radius:4px}
+  .bar .val{width:96px;text-align:right;font-variant-numeric:tabular-nums;color:var(--tx);flex-shrink:0}
+  footer{margin-top:54px;padding-top:18px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.3px}
+  @media(max-width:820px){.wrap{padding:32px 15px 60px}h1{font-size:23px}table{font-size:12.2px}th,td{padding:8px}
+    .bar .name{width:96px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">学生优惠 · 三方横向对比</div>
+  <h1>腾讯云 vs 阿里云 vs 华为云：<em>学生优惠</em>谁的力度更大</h1>
+  <p class="sub">对比口径统一为"2 核 2G 档位的云服务器、首年实际支出、可用带宽、续费规则、信息可核实程度"五个维度。腾讯与阿里的核心条款可在官方文档或活动页核实；华为云的官网学生专区页面已失效（返回 404），只能标注为"不可核实"，不据此下结论。</p>
+  <div class="facts">
+    <span class="fact">核实时间 <b>2026-10-22</b></span>
+    <span class="fact">关键依据 <b>腾讯官方定价文档 / 阿里云帮助中心 / 阿里云大学活动页</b></span>
+    <span class="fact">华为云 <b>官网学生页 404，数据不可核实</b></span>
+  </div>
+</header>
+
+<h2><span class="n">01</span>一句话结论</h2>
+<div class="box good">
+  <p><b>综合力度最大：腾讯云「云+校园」。</b>1.8 折明码标价，2 核 2G 带 <b>4M 带宽</b>年付只要 ¥74.88，2 核 4G 带 5M 年付 ¥156——同价位里带宽给得最多，而这恰好是你的场景最需要的资源。</p>
+  <p><b>纯现金支出最低：阿里云「云工开物」。</b>300 元无门槛抵扣金可把一台 2 核 2G 的首年费用抵到接近 0，但受"不可叠加、适用范围动态调整、退款不退券"三条限制，实际能抵多少要下单页才确定。</p>
+  <p><b>不建议：华为云。</b>公开信息无法核实真实价格，第三方口径从 ¥98/年 到 ¥50/月 互相矛盾；且学生机配置普遍是 1 核 1G-2 核 2G 配 <b>1M 带宽</b>，1M 带宽跑浏览器自动化会明显吃力。</p>
+</div>
+
+<h2><span class="n">02</span>政策总览：三家给的东西根本不是同一种</h2>
+<p class="lead">这是最容易看错的地方——腾讯给的是"低折扣机型套餐"，阿里给的是"代金券额度"，华为给的是"低价入门机型"。三者的可比性有限。</p>
+
+<table>
+  <thead><tr><th>维度</th><th class="v-tx">腾讯云</th><th class="v-ali">阿里云</th><th class="v-hw">华为云</th></tr></thead>
+  <tbody>
+    <tr><td>计划名称</td><td>云+校园</td><td>云工开物 · 高校计划</td><td>云创校园 / 学生专区</td></tr>
+    <tr><td>权益形式</td><td><b>折扣价套餐</b>（1.8~2.6 折）</td><td><b>300 元无门槛抵扣金</b> + 学生价机型</td><td><b>低价机型</b>（2~3 折口径）</td></tr>
+    <tr><td>认证方式</td><td>学生身份认证</td><td>实名 + 学信网学生认证</td><td>学信网在线验证报告</td></tr>
+    <tr><td>适用对象</td><td>中国内地高校在校生</td><td>专科/本科/硕士/博士/在职研究生</td><td>在校生，常附 24 岁以下限制</td></tr>
+    <tr><td>额度/折扣有效期</td><td>仅首购周期，到期按原价续费</td><td>券有效期 1 年，每人每 12 个月限领 1 张</td><td>优惠资格约 1 年，续费按原价</td></tr>
+    <tr><td>限购</td><td><b>1 台</b>（页面标"限 1 个"）</td><td>1 张券/年</td><td>1 台，部分活动限新用户</td></tr>
+    <tr><td>可选地域</td><td>北京 / 上海 / 广州</td><td>多地域可选</td><td>多地域可选</td></tr>
+    <tr><td>信息可核实度</td><td><span class="tag best">高</span> 官方定价文档 + 活动页截图</td><td><span class="tag ok">高</span> 帮助中心与活动规则页均有明文</td><td><span class="tag na">低</span> 学生页 404，仅第三方口径</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">03</span>具体套餐与价格（原价 vs 优惠价）</h2>
+
+<h3>腾讯云「云+校园」（已核实）</h3>
+<table>
+  <thead><tr><th>机型</th><th>配置</th><th>时长</th><th>原价</th><th>优惠价</th><th>折合月</th><th>折扣</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>轻量应用服务器</td><td>2核2G / <b>4M</b> / 300G月流量 / 40G SSD</td><td class="num">3 个月</td>
+      <td class="num old">¥144</td><td class="num price">¥25.92</td><td class="num">¥8.64</td><td><span class="tag best">1.8 折</span></td>
+    </tr>
+    <tr style="background:#1b2029">
+      <td>轻量应用服务器</td><td>2核2G / 4M / 300G / 40G SSD</td><td class="num"><b>1 年</b></td>
+      <td class="num old">约 ¥576<span class="dim">（48/月×12）</span></td><td class="num price">约 ¥74.88</td><td class="num price">≈¥6.24</td><td><span class="tag best">约 1.3 折</span></td>
+    </tr>
+    <tr>
+      <td>轻量应用服务器</td><td>2核4G / <b>5M</b> / 500G / 60G SSD</td><td class="num">3 个月</td>
+      <td class="num old">¥406<span class="dim">（页面标注）</span></td><td class="num price">¥46.43</td><td class="num">¥15.48</td><td><span class="tag best">2.4 折</span></td>
+    </tr>
+    <tr style="background:#1b2029">
+      <td>轻量应用服务器</td><td>2核4G / 5M / 500G / 60G SSD</td><td class="num"><b>1 年</b></td>
+      <td class="num old">—</td><td class="num price">约 ¥156</td><td class="num price">≈¥13.0</td><td><span class="tag best">最划算档</span></td>
+    </tr>
+    <tr>
+      <td>CVM 标准型 S5</td><td>2核4G / 3M / 100G SSD</td><td class="num">1 年</td>
+      <td class="num old">¥2904</td><td class="num price">¥755.04</td><td class="num">¥62.92</td><td><span class="tag no">2.6 折但不值</span></td>
+    </tr>
+  </tbody>
+</table>
+<p class="dim">说明：3 个月与 1 年的价格来自活动页公开价目与用户实际截图交叉核对；1 年年付价请以你页面下拉切换后显示的实付为准。CVM 那张卡虽然折扣 2.6 折，但带宽只有 3M、绝对支出高 10 倍，属于"折扣好看、性价比差"的典型。</p>
+
+<h3>阿里云「云工开物」（已核实规则，机型价随活动波动）</h3>
+<table>
+  <thead><tr><th>权益</th><th>内容</th><th>适用产品</th><th>限制</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>300 元无门槛抵扣金</b></td>
+      <td>每人每 12 个月限领 1 张，有效期 1 年，自领取日起算</td>
+      <td>ECS、OSS、RDS 等部分公共云产品；<b>不含</b>域名、虚拟主机、云市场三方商品</td>
+      <td>不可与其他券同单使用；部分折扣商品不可叠加；订单退款后券不退回；不可提现、不可转让</td>
+    </tr>
+    <tr>
+      <td>学生价机型（活动口径）</td>
+      <td>2核2G ECS 约 ¥99/年（另有 ¥9.9/月 口径）；轻量 2核2G 新用户爆款 ¥38/年（非学生专属）</td>
+      <td>ECS / 轻量应用服务器</td>
+      <td>首年价，续费回原价；轻量套餐不支持单项升级配置</td>
+    </tr>
+  </tbody>
+</table>
+<p class="dim">关键理解：阿里给的是"额度"不是"折扣"。若 300 元券能用于一台年费 ≤300 元的机器，等于首年零成本；但若该机型本身已是特惠价、按规则不可叠加，券就只能另作他用。这一点必须在下单页实测。</p>
+
+<h3>华为云（无法核实，仅供参考）</h3>
+<table>
+  <thead><tr><th>来源口径</th><th>配置</th><th>报价</th><th>可信度</th></tr></thead>
+  <tbody>
+    <tr><td>第三方整理 A</td><td>1核1G / 1M / 40G</td><td class="num">¥98/年起</td><td><span class="tag warn">存疑</span></td></tr>
+    <tr><td>第三方整理 B</td><td>2核2G / 1M / 40G</td><td class="num">¥99~150/年</td><td><span class="tag warn">存疑</span></td></tr>
+    <tr><td>第三方整理 C</td><td>1核2G / 1M</td><td class="num">约 ¥50/月</td><td><span class="tag no">明显异常</span></td></tr>
+    <tr><td>官网核实</td><td>—</td><td class="num">页面 404</td><td><span class="tag na">不可核实</span></td></tr>
+  </tbody>
+</table>
+<p class="dim">华为云官网 <code class="inl">huaweicloud.com/activity/student.html</code> 返回 404，教育门户（edu.huaweicloud.com）只有课程与认证，没有任何学生机价格。三方报价互相矛盾到无法调和（同一个 2 核 2G 机型，一处说 ¥99~150/年，一处说 ¥50/月，差 4 倍）。这种情况下任何"华为最便宜/最贵"的结论都是编的，我不下。</p>
+
+<h2><span class="n">04</span>折扣力度换算（同一把尺子）</h2>
+<p class="lead">统一按"2 核 2G、首年、实际现金支出"换算。条形越短越省。</p>
+
+<div class="bar"><div class="name">阿里云（券抵后）</div><div class="track"><div class="fill" style="width:2%;background:var(--ali)"></div></div><div class="val price">≈¥0</div></div>
+<div class="bar"><div class="name">腾讯云 2核2G 年付</div><div class="track"><div class="fill" style="width:25%;background:var(--txc)"></div></div><div class="val price">¥74.88</div></div>
+<div class="bar"><div class="name">腾讯云 2核4G 年付</div><div class="track"><div class="fill" style="width:52%;background:var(--txc)"></div></div><div class="val price">¥156</div></div>
+<div class="bar"><div class="name">华为云（存疑口径）</div><div class="track"><div class="fill" style="width:40%;background:var(--hw);opacity:.55"></div></div><div class="val">¥98~150</div></div>
+<div class="bar"><div class="name">腾讯云 2核2G 3个月</div><div class="track"><div class="fill" style="width:9%;background:#3f7fbf"></div></div><div class="val">¥25.92</div></div>
+<div class="bar"><div class="name">常规价 2核2G（对照）</div><div class="track"><div class="fill" style="width:100%;background:#3a4557"></div></div><div class="val dim">¥408~576</div></div>
+
+<table>
+  <thead><tr><th>比法</th><th>胜出</th><th>原因</th></tr></thead>
+  <tbody>
+    <tr><td>首年现金支出最低</td><td class="v-ali">阿里云</td><td>300 元券可直接把一台入门机抵到近 0，腾讯最低也要 ¥74.88</td></tr>
+    <tr><td>同价位配置最好</td><td class="v-tx">腾讯云</td><td>¥74.88 给到 2核2G + <b>4M</b>；阿里同价位常见 1~3M，华为多为 1M</td></tr>
+    <tr><td>折扣率最狠</td><td class="v-tx">腾讯云</td><td>年付约 1.3 折（80%+ 减免）；阿里是固定额度，不按比例</td></tr>
+    <tr><td>可续费/可长期用</td><td class="v-ali">阿里云</td><td>券虽一年一次，但每年可重新领取；腾讯学生价仅首购周期</td></tr>
+    <tr><td>信息透明、可自行核实</td><td class="v-tx">腾讯云</td><td>有官方定价文档可查；阿里次之；华为学生专区已失效</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">05</span>三个必须知道的坑</h2>
+<div class="box warnbox">
+  <p><b>1. 所有学生价的"便宜"都只覆盖首年/首购周期。</b>腾讯 2 核 2G 优惠价 ¥74.88/年，续费回原价（官网 48 元/月口径，年化约 ¥576），差 7 倍多。阿里同理。买之前先想清楚"第二年怎么办"——要么到期换厂商/换账号，要么接受原价。</p>
+  <p><b>2. 阿里的 300 元是"抵扣金"不是"折扣"。</b>它不能和优惠券同单叠加，部分特惠机型不支持叠加，订单退款券不退回。别把它当成"每年白送一台服务器"，要当成"一次性 300 元预算"。</p>
+  <p><b>3. 带宽比核数更影响体验。</b>三家学生机里，腾讯给 4M/5M，阿里常见 1~3M，华为多为 1M。你要跑的浏览器自动化每天要加载聊天页，1M 带宽会让整个流程变慢甚至超时——<b>这一项比"多一核 CPU"重要得多</b>。</p>
+</div>
+
+<h2><span class="n">06</span>给你的结论</h2>
+<div class="box tip">
+  <p>你的场景是单账号、10~50 个好友、要跑一个无头 Chromium。按这个需求：</p>
+  <p><b>首选腾讯云 2核4G5M 年付 ¥156（≈¥13/月）。</b>理由：内存留出余量不用靠 swap 硬撑；5M 带宽是三家学生机里最高的；¥13/月只有你预算上限的三分之一。如果只想压到最低，就选 <b>2核2G4M 年付 ¥74.88（≈¥6/月）</b>，也能跑，脚本里已经配好 swap 和内存保护。</p>
+  <p><b>如果你已有阿里云账号且没领过学生券</b>，值得先去领 300 元券看一眼能不能覆盖目标机型——能覆盖就是首年零成本，比腾讯更省。但别为了省这几十块去重新适应一套控制台和计费规则，你的时间成本比这高。</p>
+  <p><b>华为云可以直接排除</b>：价格查不到、配置偏低、1M 带宽对你的用途是硬伤。</p>
+</div>
+
+<footer>
+  数据来源：腾讯云官方定价文档（更新于 2026-09-24）、腾讯云云+校园活动页（用户截图核对）、阿里云帮助中心「云工开物」活动说明、阿里云大学活动规则页（2025-11-11 至 2027-03-31）。华为云部分因官网学生专区页面返回 404，仅列第三方口径并标注存疑，不作为结论依据。<br>
+  所有活动价、库存、限购与叠加规则均由各厂商单方调整，下单前请以支付页实付金额与活动规则页为准；本对比不构成购买建议的收益承诺。
+</footer>
+
+</div>
+</body>
+</html>

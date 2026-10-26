@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0d12">
+<title>扫码工具 · 续火花</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#141a23; --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.18);
+    --tx:#e9edf5; --tx2:#a9b4c5; --tx3:#7d8a9e;
+    --ember:#ff7a45; --ember2:#ff9f43; --ok:#3ddc97; --bad:#ff6b6b; --warn:#ffc861;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:
+      radial-gradient(700px 400px at 88% -8%, rgba(255,122,69,.10), transparent 62%),
+      radial-gradient(600px 340px at 2% 106%, rgba(90,169,255,.06), transparent 60%),
+      var(--bg);
+    color:var(--tx);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;padding:0 0 env(safe-area-inset-bottom)}
+  .wrap{max-width:620px;margin:0 auto;padding:16px 16px 40px}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.02em;
+    background:linear-gradient(100deg,#fff 10%,var(--ember2) 60%,var(--ember));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  header a{margin-left:auto;font-size:12.5px;color:var(--tx3);text-decoration:none;
+    border:1px solid var(--line2);padding:4px 10px;border-radius:8px}
+  header a:hover{color:var(--tx);border-color:var(--ember)}
+  .tabs{display:flex;gap:8px;background:rgba(255,255,255,.04);padding:4px;border-radius:12px;margin-bottom:14px}
+  .tabs button{flex:1;padding:9px 0;border:0;border-radius:9px;background:transparent;color:var(--tx3);
+    font-size:14px;font-family:inherit;cursor:pointer;transition:.2s}
+  .tabs button.on{background:linear-gradient(135deg,var(--ember),var(--ember2));color:#1a0e07;font-weight:650}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .drop{border:1.5px dashed var(--line2);border-radius:14px;padding:26px 16px;text-align:center;
+    transition:.25s;cursor:pointer}
+  .drop:hover,.drop.over{border-color:var(--ember);background:rgba(255,122,69,.05)}
+  .drop .ico{font-size:34px;line-height:1}
+  .drop .t{margin-top:8px;font-weight:600}
+  .drop .s{font-size:12.5px;color:var(--tx3);margin-top:4px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:11px 18px;border-radius:11px;border:1px solid var(--line2);background:rgba(255,255,255,.05);
+    color:var(--tx);font-size:14px;font-family:inherit;cursor:pointer;transition:.2s}
+  .btn:hover{border-color:var(--ember);background:rgba(255,255,255,.09)}
+  .btn.primary{background:linear-gradient(135deg,var(--ember),var(--ember2));border:0;color:#1a0e07;font-weight:650}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  #preview{width:100%;max-height:240px;object-fit:contain;border-radius:12px;margin-top:12px;
+    background:#000;display:none}
+  .state{font-size:13px;color:var(--tx3);margin-top:10px;min-height:20px}
+  .state.err{color:var(--bad)} .state.ok{color:var(--ok)}
+  .res{margin-top:12px;display:none}
+  .res .type{display:inline-block;font-size:11.5px;padding:1px 8px;border-radius:5px;
+    background:rgba(61,220,151,.15);color:#7ee2b8;margin-bottom:8px}
+  .res .txt{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;font-family:ui-monospace,Consolas,monospace;font-size:13.5px;
+    word-break:break-all;line-height:1.65;max-height:180px;overflow:auto}
+  .res .ops{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  #camWrap{display:none}
+  #cam{width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover}
+  .hint{font-size:12.5px;color:var(--tx3);line-height:1.7;margin-top:10px}
+  .banner{padding:10px 13px;border-radius:11px;font-size:12.5px;line-height:1.7;margin-bottom:12px;
+    background:rgba(255,200,97,.1);border:1px solid rgba(255,200,97,.32);color:#ffd489}
+  .hist{margin-top:6px}
+  .hist .item{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);
+    font-size:12.8px;color:var(--tx2)}
+  .hist .item:last-child{border-bottom:0}
+  .hist .item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-family:ui-monospace,Consolas,monospace}
+  .hist .item button{background:transparent;border:0;color:var(--tx3);cursor:pointer;font-size:12px}
+  .hist .item button:hover{color:var(--ember)}
+  .empty{font-size:12.5px;color:var(--tx3);padding:8px 0}
+  #toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;
+    background:rgba(21,26,34,.96);border:1px solid var(--line2);border-radius:10px;
+    padding:9px 16px;font-size:13px;transition:.25s;pointer-events:none;z-index:99}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📷 扫码工具</h1>
+    <a href="/">← 控制台</a>
+  </header>
+
+  <div class="tabs">
+    <button id="tabPhoto" class="on" onclick="switchTab('photo')">拍照 / 上传</button>
+    <button id="tabCam" onclick="switchTab('cam')">实时摄像头</button>
+  </div>
+
+  <!-- 拍照 / 上传 -->
+  <div id="panePhoto">
+    <div class="card">
+      <div class="drop" id="drop">
+        <div class="ico">🖼️</div>
+        <div class="t">点击选择图片，或直接用相机拍</div>
+        <div class="s">支持二维码、条形码（EAN/UPC/Code128 等）· 单张 ≤ 8MB</div>
+      </div>
+      <input id="file" type="file" accept="image/*" capture="environment" style="display:none">
+      <img id="preview" alt="预览">
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnPick" onclick="document.getElementById('file').click()">选择图片 / 拍照</button>
+        <button class="btn" id="btnAgain" style="display:none" onclick="reset()">重新扫描</button>
+      </div>
+      <div class="state" id="state"></div>
+
+      <div class="res" id="res">
+        <div class="type" id="rtype">QRCODE</div>
+        <div class="txt" id="rtext"></div>
+        <div class="ops">
+          <button class="btn" onclick="copyText()">复制内容</button>
+          <button class="btn" id="btnOpen" style="display:none" onclick="openLink()">打开链接</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 实时摄像头 -->
+  <div id="camWrap">
+    <div class="card">
+      <div class="banner" id="camBanner" style="display:none">
+        当前页面是 <b>HTTP 明文</b>，浏览器禁止网页调用摄像头。<br>
+        请改用左侧「拍照 / 上传」——手机上点按钮会直接调起系统相机，识别效果一样。
+      </div>
+      <video id="cam" playsinline muted></video>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnCamStart" onclick="startCam()">开启摄像头</button>
+        <button class="btn" id="btnCamStop" style="display:none" onclick="stopCam()">停止</button>
+      </div>
+      <div class="hint" id="camHint">开启后把二维码对准镜头，识别到会自动显示结果。</div>
+      <div class="state" id="camState"></div>
+      <div class="res" id="camRes">
+        <div class="type" id="crtype"></div>
+        <div class="txt" id="crtext"></div>
+        <div class="ops"><button class="btn" onclick="copyCam()">复制内容</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史 -->
+  <div class="card">
+    <div style="display:flex;align-items:center;margin-bottom:6px">
+      <div style="font-weight:650;font-size:14px">最近识别</div>
+      <button class="btn" style="margin-left:auto;padding:5px 11px;font-size:12px" onclick="clearHist()">清空</button>
+    </div>
+    <div class="hist" id="hist"><div class="empty">还没有记录</div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lastText = '', lastType = '';
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function switchTab(which) {
+  const isPhoto = which === 'photo';
+  $('panePhoto').style.display = isPhoto ? 'block' : 'none';
+  $('camWrap').style.display = isPhoto ? 'none' : 'block';
+  $('tabPhoto').classList.toggle('on', isPhoto);
+  $('tabCam').classList.toggle('on', !isPhoto);
+  if (!isPhoto) checkCamSupport();
+  else stopCam();
+}
+
+function checkCamSupport() {
+  const secure = window.isSecureContext;
+  const hasApi = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  if (!secure || !hasApi) {
+    $('camBanner').style.display = 'block';
+    $('btnCamStart').disabled = true;
+    $('camHint').textContent = '在此环境下不可用（需要 HTTPS）。';
+  } else {
+    $('camBanner').style.display = 'none';
+    $('btnCamStart').disabled = false;
+  }
+}
+
+/* ---------- 图片识别 ---------- */
+$('drop').onclick = () => $('file').click();
+$('file').onchange = (e) => { const f = e.target.files[0]; if (f) upload(f); };
+
+['dragover', 'dragenter'].forEach(ev => $('drop').addEventListener(ev, (e) => {
+  e.preventDefault(); $('drop').classList.add('over');
+}));
+['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, (e) => {
+  e.preventDefault(); $('drop').classList.remove('over');
+}));
+$('drop').addEventListener('drop', (e) => {
+  const f = e.dataTransfer.files[0]; if (f) upload(f);
+});
+
+async function upload(file) {
+  if (!file.type.startsWith('image/')) { setState('请选择图片文件', 'err'); return; }
+  if (file.size > 8 * 1024 * 1024) { setState('图片超过 8MB，请压缩后再试', 'err'); return; }
+  $('preview').src = URL.createObjectURL(file);
+  $('preview').style.display = 'block';
+  $('res').style.display = 'none';
+  setState('识别中…');
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch('/api/scan', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.ok) { setState(d.error || '未识别到内容', 'err'); $('btnAgain').style.display = 'inline-flex'; return; }
+    showResult(d.type, d.text, d.format);
+  } catch (e) {
+    setState('请求失败：' + e.message, 'err');
+  }
+}
+
+function setState(text, cls) {
+  const el = $('state'); el.textContent = text; el.className = 'state ' + (cls || '');
+}
+
+function showResult(type, text, format) {
+  lastText = text; lastType = type;
+  setState('识别成功', 'ok');
+  $('res').style.display = 'block';
+  const base = type === 'qrcode' ? 'QR CODE' : 'BARCODE';
+  const extra = (format && format !== 'QR_CODE' && format !== 'BARCODE') ? ' · ' + format : '';
+  $('rtype').textContent = base + extra;
+  $('rtext').textContent = text;
+  $('btnOpen').style.display = /^https?:\/\//i.test(text) ? 'inline-flex' : 'none';
+  $('btnAgain').style.display = 'inline-flex';
+  pushHist(type, text);
+}
+
+function copyText() { navigator.clipboard.writeText(lastText).then(() => toast('已复制')).catch(() => toast('复制失败，请手动选择')); }
+function openLink() { window.open(lastText, '_blank', 'noopener'); }
+
+function reset() {
+  $('res').style.display = 'none';
+  $('preview').style.display = 'none';
+  $('file').value = '';
+  setState('');
+  $('btnAgain').style.display = 'none';
+}
+
+/* ---------- 摄像头 ---------- */
+let stream = null, scanning = false, detector = null, lastHitAt = 0;
+
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const v = $('cam'); v.srcObject = stream; await v.play();
+    $('btnCamStart').style.display = 'none';
+    $('btnCamStop').style.display = 'inline-flex';
+    $('camState').textContent = '正在扫描…';
+    scanning = true;
+    if ('BarcodeDetector' in window) {
+      try { detector = new BarcodeDetector(); } catch (e) { detector = null; }
+    }
+    loop();
+  } catch (e) {
+    $('camState').textContent = '无法开启摄像头：' + (e.message || e.name);
+    $('camState').className = 'state err';
+  }
+}
+
+function stopCam() {
+  scanning = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $('btnCamStart').style.display = 'inline-flex';
+  $('btnCamStop').style.display = 'none';
+}
+
+async function loop() {
+  if (!scanning) return;
+  const v = $('cam');
+  try {
+    if (detector && v.videoWidth) {
+      const codes = await detector.detect(v);
+      if (codes && codes.length) {
+        hit(codes[0].rawValue, codes[0].format || 'barcode');
+        await new Promise(r => setTimeout(r, 1200));
+      }
+    } else if (Date.now() - lastHitAt > 900 && v.videoWidth) {
+      // 降级：抓帧交给服务端识别
+      lastHitAt = Date.now();
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+      if (blob) {
+        const fd = new FormData(); fd.append('file', blob, 'frame.jpg');
+        const r = await fetch('/api/scan', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.ok) hit(d.text, d.type === 'qrcode' ? 'QR_CODE' : (d.format || 'barcode'));
+      }
+    }
+  } catch (e) { /* 忽略单帧异常 */ }
+  if (scanning) setTimeout(loop, 320);
+}
+
+function hit(text, format) {
+  if (!text) return;
+  $('camRes').style.display = 'block';
+  $('crtype').textContent = format || 'CODE';
+  $('crtext').textContent = text;
+  $('camState').textContent = '已识别';
+  $('camState').className = 'state ok';
+  lastText = text; lastType = 'qrcode';
+  pushHist('qrcode', text);
+  if (navigator.vibrate) navigator.vibrate(60);
+}
+
+function copyCam() { navigator.clipboard.writeText(lastText).then(() => toast('已复制')).catch(() => toast('复制失败')); }
+
+/* ---------- 历史 ---------- */
+const HKEY = 'scan_hist_v1';
+function getHist() { try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) { return []; } }
+
+function pushHist(type, text) {
+  const h = getHist().filter(x => x.text !== text);
+  h.unshift({ type, text, t: Date.now() });
+  localStorage.setItem(HKEY, JSON.stringify(h.slice(0, 10)));
+  renderHist();
+}
+
+function renderHist() {
+  const h = getHist();
+  const box = $('hist');
+  if (!h.length) { box.innerHTML = '<div class="empty">还没有记录</div>'; return; }
+  box.innerHTML = h.map((x, i) => `
+    <div class="item">
+      <span title="${x.text.replace(/"/g, '&quot;')}">${x.text.replace(/</g, '&lt;')}</span>
+      <button onclick="copyHist(${i})">复制</button>
+    </div>`).join('');
+}
+
+function copyHist(i) {
+  const h = getHist(); if (!h[i]) return;
+  navigator.clipboard.writeText(h[i].text).then(() => toast('已复制')).catch(() => toast('复制失败'));
+}
+
+function clearHist() { localStorage.removeItem(HKEY); renderHist(); toast('已清空'); }
+
+renderHist();
+checkCamSupport();
+</script>
+</body>
+</html>

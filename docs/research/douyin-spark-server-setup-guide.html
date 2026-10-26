@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抖音续火花 · 服务器选购与完整部署手册</title>
+<style>
+  :root{
+    --bg:#0e1116; --bg2:#131820; --card:#161c26; --line:#242c3a; --line2:#313b4d;
+    --tx:#e7ebf2; --tx2:#a7b2c4; --tx3:#78859a;
+    --hot:#ff7a45; --hot2:#ffa06b; --blue:#5aa9ff; --green:#3ddc97; --amber:#ffcc66; --red:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:52px 26px 96px}
+  header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:30px}
+  .kicker{font-size:12.5px;letter-spacing:.18em;color:var(--hot);font-weight:600;text-transform:uppercase}
+  h1{font-size:31px;line-height:1.32;margin:12px 0 10px;font-weight:700;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--hot)}
+  .sub{color:var(--tx2);font-size:14.5px;max-width:800px}
+  .facts{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+  .fact{font-size:12.5px;color:var(--tx2);background:var(--bg2);border:1px solid var(--line);
+    padding:4px 11px;border-radius:20px}
+  .fact b{color:var(--tx);font-weight:600}
+  h2{font-size:21px;margin:52px 0 6px;font-weight:700;letter-spacing:-.2px;
+    padding-bottom:9px;border-bottom:1px solid var(--line)}
+  h2 .n{color:var(--hot);font-size:13.5px;font-weight:700;margin-right:9px;font-variant-numeric:tabular-nums}
+  .lead{color:var(--tx2);font-size:14px;margin:10px 0 18px}
+  h3{font-size:15.6px;margin:26px 0 8px;font-weight:650;color:var(--tx)}
+  h3 .st{display:inline-block;min-width:22px;color:var(--hot2);font-variant-numeric:tabular-nums}
+
+  table{width:100%;border-collapse:collapse;font-size:13.3px;margin:10px 0 8px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#1a2130;color:var(--tx2);font-weight:600;font-size:12.2px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#1a2029}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .tag.rec{background:rgba(255,122,69,.15);color:var(--hot2)}
+  .tag.ok{background:rgba(61,220,151,.13);color:#7ee2b8}
+  .tag.no{background:rgba(255,107,107,.13);color:#ff9d9d}
+  .tag.warn{background:rgba(255,204,102,.13);color:var(--amber)}
+  .dim{color:var(--tx3);font-size:12.3px}
+  b.hl{color:var(--tx)}
+  .price{color:var(--hot2);font-weight:650;font-variant-numeric:tabular-nums}
+
+  .box{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:16px 18px;margin:16px 0}
+  .box h4{margin:0 0 8px;font-size:14.4px;font-weight:650}
+  .box p{margin:6px 0;color:var(--tx2);font-size:13.7px}
+  .box p b{color:var(--tx)}
+  .tip{border-left:3px solid var(--blue);background:#131a24}
+  .warnbox{border-left:3px solid var(--red);background:#1a1519}
+  .good{border-left:3px solid var(--green);background:#131c18}
+  ul.tight,ol.tight{margin:8px 0;padding-left:20px}
+  ul.tight li,ol.tight li{margin:5px 0;color:var(--tx2);font-size:13.7px}
+  ul.tight li b,ol.tight li b{color:var(--tx)}
+
+  .step{border:1px solid var(--line);border-radius:11px;background:var(--card);margin:14px 0;overflow:hidden}
+  .step-h{background:#1a2130;padding:11px 17px;border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .step-h .num{background:var(--hot);color:#171008;font-weight:700;font-size:12px;border-radius:5px;
+    padding:2px 8px;font-variant-numeric:tabular-nums}
+  .step-h .t{font-weight:650;font-size:14.6px}
+  .step-h .who{margin-left:auto;font-size:11.6px;color:var(--tx3)}
+  .step-b{padding:14px 17px}
+  .row{display:grid;grid-template-columns:76px 1fr;gap:8px;margin:8px 0;font-size:13.6px}
+  .row .k{color:var(--tx3);font-size:12.4px;padding-top:2px}
+  .row .v{color:var(--tx2)}
+  .row .v b{color:var(--tx)}
+  pre{margin:9px 0;background:#0b0f15;border:1px solid var(--line2);border-radius:8px;
+    padding:12px 14px;overflow-x:auto;position:relative;font-size:12.8px;line-height:1.7}
+  pre code{font-family:ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;color:#c9d6e8;white-space:pre}
+  pre .cm{color:#5f7286}
+  pre .var{color:#ffcc66}
+  .copy{position:absolute;top:8px;right:8px;background:#1d2634;color:var(--tx3);border:1px solid var(--line2);
+    border-radius:5px;font-size:11px;padding:2px 8px;cursor:pointer;font-family:inherit}
+  .copy:hover{color:var(--tx);border-color:#46536b}
+  code.inl{background:#1d2432;padding:1px 6px;border-radius:4px;font-size:12.6px;
+    font-family:ui-monospace,Consolas,monospace;color:#c9d6e8}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.3px}
+  @media(max-width:800px){.wrap{padding:32px 15px 64px}h1{font-size:24px}
+    .row{grid-template-columns:1fr;gap:2px}table{font-size:12.3px}th,td{padding:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">选购 + 部署手册</div>
+  <h1>2核2G 轻量服务器：<em>买什么</em>，以及<em>怎么装</em></h1>
+  <p class="sub">按你的实际情况定制：单抖音账号、10~50 个好友、国内云服务器、每月 20~40 元。本手册分两部分——先解决"买哪台、买哪个档、哪些选项别勾"，再给一份可以照着敲的部署流程，每一步都写明作用、注意事项和验证方法。</p>
+  <div class="facts">
+    <span class="fact">规模 <b>1 号 / 10~50 好友</b></span>
+    <span class="fact">预算 <b>20~40 元/月</b></span>
+    <span class="fact">形态 <b>国内云 · 轻量</b></span>
+    <span class="fact">价格基准 <b>腾讯云官方定价文档 2026-09-24</b></span>
+  </div>
+</header>
+
+<h2><span class="n">01</span>先定配置：为什么是 2核2G / 3M</h2>
+<p class="lead">这个项目的资源画像很特殊——它几乎不吃 CPU、不吃带宽，但<b>吃内存</b>，因为要在服务器上跑一个真实的 Chromium。</p>
+
+<table>
+  <thead><tr><th>资源</th><th>实际消耗</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>内存</td>
+      <td>Playwright 驱动的无头 Chromium 单实例 <b>400~700MB</b>；Python 服务 + APScheduler 约 150~250MB。合计 0.6~0.95GB</td>
+      <td><span class="tag rec">2G 是底线</span> 1G 会 OOM，必须靠 swap 硬撑，发送中途被杀会导致"发了半条"</td>
+    </tr>
+    <tr>
+      <td>CPU</td>
+      <td>每天只跑一次、每次几十分钟，其余 23 小时空闲；单核足够</td>
+      <td><span class="tag ok">2 核是送分题</span> 主要是给 Chromium 多进程留余量，1 核也能跑</td>
+    </tr>
+    <tr>
+      <td>带宽</td>
+      <td>只用于浏览器加载抖音聊天页，不对外提供服务；单页浏览峰值约 1~2Mbps</td>
+      <td><span class="tag ok">3M 够用</span> 别为带宽加钱，也别买 200M 锐驰型</td>
+    </tr>
+    <tr>
+      <td>流量</td>
+      <td>每天几十 MB（头像、少量图片），月合计 2~5GB</td>
+      <td><span class="tag ok">200GB 套餐绰绰有余</span> 前提是别在服务器上开浏览器刷视频</td>
+    </tr>
+    <tr>
+      <td>系统盘</td>
+      <td>系统约 3G + Chromium 约 150MB + 依赖约 500MB + 日志</td>
+      <td><span class="tag ok">40G 够</span> 50G 更宽松，差几块钱可以要</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box warnbox">
+  <h4>一个必须纠正的常见误解：备案</h4>
+  <p>很多人以为"国内服务器必须备案才能用"。<b>备案是针对域名的</b>——只有你把域名解析到内地服务器、并通过 80/443 端口对外提供网站时才需要 ICP 备案。</p>
+  <p>你这个场景是 <code class="inl">http://服务器IP:8000</code> 直接访问管理面板，<b>不涉及域名、不需要备案</b>，买完实名认证完成就能用。</p>
+</div>
+
+<h2><span class="n">02</span>买哪家、哪个套餐（含真实价格）</h2>
+<p class="lead">腾讯云的价格取自其<b>官方定价文档</b>（更新于 2026-09-24），属于标准价、最可靠的基准；阿里云的数字来自开发者社区整理的活动口径，波动大，只能当参考，下单前请以活动页实付为准。</p>
+
+<table>
+  <thead>
+    <tr><th>方案</th><th>配置</th><th>价格</th><th>折合每月</th><th>评价</th></tr>
+  </thead>
+  <tbody>
+    <tr style="background:#1b1f26">
+      <td><b>腾讯云轻量 · 入门型</b><br><span class="dim">内地 上海/北京/广州/成都/南京</span></td>
+      <td>2核2G / 40G SSD / <b>3M</b> / 200GB 月流量</td>
+      <td class="price">¥40/月<br>¥408/年（12 个月档 85 折）</td>
+      <td class="num price">≈¥34</td>
+      <td><span class="tag rec">首选</span> 官方标准价，配置刚好，年付落进你预算上限内</td>
+    </tr>
+    <tr>
+      <td>腾讯云轻量 · 入门型(低配)</td>
+      <td>2核2G / 40G SSD / 2M / 100GB 月流量</td>
+      <td class="price">¥35/月</td>
+      <td class="num">¥35</td>
+      <td><span class="tag warn">可省 5 元</span> 2M 带宽加载聊天页会明显变慢，不值得省</td>
+    </tr>
+    <tr>
+      <td>阿里云轻量（活动口径）</td>
+      <td>2核2G / 50G SSD / 3M</td>
+      <td class="price">¥79/年（活动价说法）<br>常规约 ¥30~60/月</td>
+      <td class="num">≈¥7（活动）</td>
+      <td><span class="tag warn">看运气</span> 若能拿到活动价极划算，但多为新用户首单、限时限量，续费回到原价</td>
+    </tr>
+    <tr>
+      <td>腾讯云轻量 · 通用型</td>
+      <td>2核4G / 60G SSD / 4M / 300GB</td>
+      <td class="price">¥52/月</td>
+      <td class="num">¥52</td>
+      <td><span class="tag no">超出预算</span> 除非你以后要多账号并发，否则用不上</td>
+    </tr>
+    <tr>
+      <td>腾讯云轻量 · 锐驰型</td>
+      <td>2核2G / 40G SSD / 峰值 200M / 不限流量</td>
+      <td class="price">¥45/月</td>
+      <td class="num">¥45</td>
+      <td><span class="tag no">别买</span> 高带宽对你这场景零收益，纯浪费</td>
+    </tr>
+    <tr>
+      <td>小厂/雨云类 VPS</td>
+      <td>2核2G 常见</td>
+      <td class="price">¥15~25/月</td>
+      <td class="num">¥15~25</td>
+      <td><span class="tag no">不建议</span> 便宜但线路与稳定性无保障，跑无人值守任务翻车排查成本远高于省下的钱</td>
+    </tr>
+    <tr>
+      <td>家里旧电脑 / NAS</td>
+      <td>任意</td>
+      <td class="price">0（只算电费）</td>
+      <td class="num">≈¥0</td>
+      <td><span class="tag ok">值得考虑</span> 家庭宽带 IP 最像真人，风控概率最低；代价是要 7×24 开机、断电即停</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box good">
+  <h4>给你的结论</h4>
+  <p><b>腾讯云轻量应用服务器，内地地域，2核2G / 40G SSD / 3M / 200GB，Ubuntu 24.04 LTS。</b></p>
+  <p>先买<b>月付 ¥40 跑一个月</b>，确认整条链路（扫码、定位好友、真发出去）能通，再转年付 ¥408（合 ¥34/月）。多花这 ¥28 是买保险——万一这套东西在你的账号上跑不通，月付止损比年付退款省事得多。</p>
+</div>
+
+<h3>下单时必须做的四个选择</h3>
+<ol class="tight">
+  <li><b>地域选你所在城市或最近的节点。</b>这是最重要的一项。抖音对"异地登录"敏感，服务器 IP 与手机常用地越接近，触发短信/刷脸验证的概率越低。别选香港或海外（你的选择是对的）。</li>
+  <li><b>镜像选 Ubuntu 24.04 LTS（纯净系统），不要选 Windows、不要选宝塔/WordPress 应用镜像。</b>Windows 镜像要额外收费且 2G 内存跑不动；宝塔面板会白占内存和端口，你根本用不上。</li>
+  <li><b>系统盘 40G 起步。</b>低于 40G 装完 Chromium 和依赖后余量紧张，日志一多就满。</li>
+  <li><b>先月付，别一上来买三年。</b>轻量套餐<b>续费按原价</b>，新用户首单 1.4 折这类优惠只有一次，先跑通再锁长期。</li>
+</ol>
+
+<h3>这几样别买（销售页会顺手推荐）</h3>
+<ul class="tight">
+  <li><b>数据盘</b>——40G 系统盘够，挂载数据盘只会让你多一步 <code class="inl">fdisk</code> 的麻烦。</li>
+  <li><b>快照/备份套餐</b>——第一周不需要，等跑稳了再说，数据你自己 <code class="inl">scp</code> 拉回本地更实在。</li>
+  <li><b>DDoS 高防、CDN、SSL 证书</b>——你连域名都没有，全部无关。</li>
+  <li><b>"代部署/代挂机"服务</b>——等于把账号 Cookie 交给陌生人，这是本次调研里风险最高的一件事。</li>
+</ul>
+
+<h2><span class="n">03</span>为什么这次不装 S 级那个项目</h2>
+<p class="lead">上一轮我把 <code class="inl">halfwaystudent/douyin-sparkflow</code> 评为 S 级，那是按"功能完整度 + 活跃度"排的。放到你这台 2核2G 上，结论要改。</p>
+
+<table>
+  <thead><tr><th>项目</th><th>部署形态</th><th>2核2G 上能不能跑</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>halfwaystudent/douyin-sparkflow</td>
+      <td>Docker Compose <b>五个容器</b>：web + scheduler + login-desktop(内含 Chromium + noVNC) + mihomo 代理 + task</td>
+      <td><span class="tag no">勉强</span> 光登录桌面容器就是 500~700MB，再叠加 web 与代理，2G 会持续 swap 抖动，README 自己写的要求是 2 核 2G "或以上"、10G 存储</td>
+      <td>留到你升级 2核4G 再上</td>
+    </tr>
+    <tr style="background:#1b1f26">
+      <td><b>Xiaowu-0916/douyin-spark</b></td>
+      <td>FastAPI + Playwright + APScheduler，<b>单进程单服务</b>，自带 <code class="inl">deploy/deploy.sh</code> 一键部署 + systemd</td>
+      <td><span class="tag ok">充裕</span> 作者标注 1 核 1G 可跑（需 swap），2核2G 属于舒服档</td>
+      <td><span class="tag rec">本次部署主线</span></td>
+    </tr>
+    <tr>
+      <td>2061360308/DouYinSparkFlow</td>
+      <td>图形客户端为主 + Docker 镜像</td>
+      <td>Docker 单容器可跑，但图形界面在无头服务器上没意义</td>
+      <td>备选：适合你本地 Windows 上用</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box tip">
+  <h4>选它的三个实质理由（不只是"轻"）</h4>
+  <p><b>1. 防发错人做得最细</b>：点击联系人后会校验右侧会话标题是否为目标好友才继续发送，从机制上杜绝"发给上一个人"。这是这类工具最常见的翻车方式。</p>
+  <p><b>2. 失败有兜底</b>：文字离开输入框才算发送成功；本轮失败的好友 45 分钟后自动补发一次，每天最多一次。</p>
+  <p><b>3. 有熔断</b>：页面出现"操作频繁 / 安全验证"立即停掉本轮，不会继续硬发把风控等级越抬越高。</p>
+  <p class="dim">代价：只支持纯文本（你的需求够用），最后提交 2026-08-20，比 S 级两位安静。</p>
+</div>
+
+<h2><span class="n">04</span>部署流程（照着敲）</h2>
+<p class="lead">共 9 步。带 <span class="tag warn">本机</span> 标记的在你的 Windows 上做，带 <span class="tag ok">服务器</span> 的在云服务器上做。每步都给了验证方式——<b>没验证通过就不要进入下一步</b>，这类部署 90% 的坑都是"跳过验证硬往下走"造成的。</p>
+
+<div class="step">
+  <div class="step-h"><span class="num">00</span><span class="t">准备：买机器 + 放行端口</span><span class="who">控制台</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">做什么</div><div class="v">按第 2 节下单。买完后进控制台 →「防火墙 / 安全组」，放行 <b>22（SSH）</b> 和 <b>8000（面板）</b>。</div></div>
+    <div class="row"><div class="k">作用</div><div class="v">轻量服务器默认只放行 22/80/443，<b>不放行 8000 你永远打不开面板</b>，而且报错是"连接超时"，很容易误判成服务没起来。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v"><b>来源 IP 一定要填你自己的公网 IP，不要图省事填 0.0.0.0/0。</b>这个面板里有你账号的登录态，暴露在公网等于把抖音账号挂在网上。查自己 IP：浏览器搜"我的IP"。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">控制台显示两条规则，来源列是你的 IP（形如 <code class="inl">1.2.3.4/32</code>）。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">01</span><span class="t">登录服务器并做基础加固</span><span class="who">服务器</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">做什么</div><div class="v">Windows 自带 OpenSSH，直接在 PowerShell 里连（把 IP 换成你的）：</div></div>
+<pre><button class="copy">复制</button><code>ssh root@<span class="var">你的服务器IP</span></code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">首次登录会提示 <code class="inl">yes/no</code> 确认指纹，输 <code class="inl">yes</code> 再输密码（腾讯云轻量默认给 root 密码，在控制台可以重置）。</div></div>
+    <div class="row"><div class="k">接着做</div><div class="v">更新系统、设时区、装 git —— 三件事一起做：</div></div>
+<pre><button class="copy">复制</button><code>apt update &amp;&amp; apt upgrade -y
+timedatectl set-timezone Asia/Shanghai
+apt install -y git curl
+date</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v"><b>时区必须设成上海</b>。默认是 UTC，你设"21:00 发送"实际会在北京时间凌晨 5 点发出去。`date` 用于确认。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v"><code class="inl">date</code> 输出里带 <b>CST</b> 且时间与北京时间一致，例如 <code class="inl">Thu Oct 22 17:40:12 CST 2026</code>。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">02</span><span class="t">创建 swap（2G 内存的保险丝）</span><span class="who">服务器</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">做什么</div><div class="v">项目自带的部署脚本会建，但建议你先手动建好，避免脚本中途失败留下半成品：</div></div>
+<pre><button class="copy">复制</button><code><span class="cm"># 建 2G swap 文件</span>
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' &gt;&gt; /etc/fstab
+
+<span class="cm"># 验证</span>
+free -h</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">Chromium 的内存峰值有波动。2G 物理内存 + 2G swap，意味着偶发峰值只会<b>变慢</b>而不会<b>被 OOM Killer 杀掉</b>。发送进行到一半进程被杀的后果是"消息发了一半/状态不明"，很麻烦。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v"><code class="inl">/etc/fstab</code> 那一行是让它开机自动挂载，<b>漏了这行重启后 swap 就没了</b>。如果你的系统盘是 SSD 且剩余空间紧张，可把 2G 改成 1G。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v"><code class="inl">free -h</code> 的 Swap 行显示总量 2.0Gi。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">03</span><span class="t">拉取项目代码</span><span class="who">服务器</span></div>
+  <div class="step-b">
+<pre><button class="copy">复制</button><code>cd /opt
+git clone https://github.com/Xiaowu-0916/douyin-spark.git
+cd douyin-spark
+ls</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">放在 <code class="inl">/opt</code> 是 Linux 存放第三方应用的惯例目录，后续 systemd 服务的 <code class="inl">WorkingDirectory</code> 会指向这里。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v">如果 <code class="inl">git clone</code> 卡住或报 TLS 错误，是服务器到 GitHub 的网络问题，先重试一次；仍不通就改用国内镜像或在你本机下载 zip 后用 <code class="inl">scp</code> 传上去。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v"><code class="inl">ls</code> 能看到 <code class="inl">app.py</code>、<code class="inl">extract_cookie.py</code>、<code class="inl">core/</code>、<code class="inl">static/</code>、<code class="inl">deploy/</code>。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">04</span><span class="t">在本机扫码，导出登录态</span><span class="who">本机 Windows</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">为什么不用服务器扫</div><div class="v">这个项目的设计是<b>登录态在本机扫码产生、服务器只复用</b>。原因是抖音对"机房 IP 首次登录"很敏感，从你家宽带登录再拿凭证去服务器用，触发验证的概率更低。</div></div>
+    <div class="row"><div class="k">做什么</div><div class="v">在 Windows 上装 Python 3.11（安装时勾选 <b>Add Python to PATH</b>），然后把项目下载到本地，在项目目录里执行：</div></div>
+<pre><button class="copy">复制</button><code><span class="cm"># 在项目目录打开 PowerShell</span>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+python extract_cookie.py</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">前四条是准备自动化环境（<code class="inl">playwright install chromium</code> 会下约 150MB 浏览器内核）。最后一条会弹出一个真实浏览器窗口，你用手机抖音扫码登录，脚本把登录态写进 <code class="inl">data/state.json</code>。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v"><b>扫码后不要立刻关窗口</b>，等脚本提示导出完成。如果弹出短信/刷脸二次验证，就在手机上完成它——这一步绕不过去，也没有必要绕。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">本地出现 <code class="inl">data\state.json</code>，用记事本打开能看到 <code class="inl">cookies</code> 字段。<b>这个文件等同账号密码，不要发到任何群里，也不要提交到 Git。</b></div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">05</span><span class="t">把登录态传到服务器</span><span class="who">本机 Windows</span></div>
+  <div class="step-b">
+<pre><button class="copy">复制</button><code><span class="cm"># 在本地项目目录执行（scp 是 Windows 自带的）</span>
+scp data\state.json root@<span class="var">你的服务器IP</span>:/opt/douyin-spark/data/</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">服务器上的程序靠这个文件代表"你已登录"。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v">如果 <code class="inl">/opt/douyin-spark/data/</code> 不存在，先在服务器上 <code class="inl">mkdir -p /opt/douyin-spark/data</code>。传输走的是 SSH 加密通道，比网盘、微信传文件安全得多。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">在服务器上 <code class="inl">ls -l /opt/douyin-spark/data/</code>，能看到 state.json 且文件大小与本地一致。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">06</span><span class="t">一键部署并启动服务</span><span class="who">服务器</span></div>
+  <div class="step-b">
+<pre><button class="copy">复制</button><code>cd /opt/douyin-spark
+bash deploy/deploy.sh</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v">脚本会依次完成：装 Python 依赖 → 装 Chromium 系统库 → 生成随机访问令牌写入 <code class="inl">.env</code> → 注册 systemd 服务并启动。跑完会打印<b>访问地址和令牌</b>。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v"><b>令牌只打印这一次</b>，立刻复制存好。如果漏了，用 <code class="inl">cat /opt/douyin-spark/.env</code> 找回。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">三连验证，全过才算起步成功：</div></div>
+<pre><button class="copy">复制</button><code>systemctl status douyin-spark --no-pager   <span class="cm"># 应为 active (running)</span>
+ss -tlnp | grep 8000                       <span class="cm"># 应看到 0.0.0.0:8000 监听</span>
+curl -I http://127.0.0.1:8000              <span class="cm"># 应返回 HTTP/1.1 200 或 401</span></code></pre>
+    <div class="row"><div class="k">若失败</div><div class="v">先看日志再动手改：<code class="inl">journalctl -u douyin-spark -n 80 --no-pager</code>。常见原因是 Chromium 系统库缺失（<code class="inl">playwright install-deps chromium</code> 可补）。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">07</span><span class="t">面板配置：勾好友、设时间</span><span class="who">浏览器</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">做什么</div><div class="v">浏览器打开 <code class="inl">http://你的服务器IP:8000</code>，输入令牌。然后按顺序：</div></div>
+    <ol class="tight">
+      <li><b>上传登录态</b>：把第 05 步传上去的 state.json 在面板里上传/确认，顶部状态应变成"已登录"。</li>
+      <li><b>同步联系人</b>：点「获取聊天列表」，等 10~30 秒。这一步会自动带出每个好友的<b>火花天数</b>。</li>
+      <li><b>勾选好友</b>：按火花天数从高到低排好了，优先勾天数最多、最舍不得断的那几个。<b>第一次只勾 1 个</b>。</li>
+      <li><b>设时间</b>：先设 21:00、随机浮动 ±30 分钟、好友间隔 6~12 分钟。改动实时生效。</li>
+    </ol>
+    <div class="row"><div class="k">注意</div><div class="v">「获取聊天列表」只包含抖音网页<b>当前已加载的会话</b>，不是你完整的好友名单。找不到某个人，先在该账号的抖音网页里打开和他的会话，再回来重新读取。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">好友列表里有头像、有火花天数、勾选状态保存后刷新页面仍保留。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">08</span><span class="t">干跑 → 真发 → 人工确认（关键一步）</span><span class="who">面板 + 手机</span></div>
+  <div class="step-b">
+    <div class="row"><div class="k">做什么</div><div class="v">先点「<b>干跑测试</b>」（走完整流程但不真发），日志里应能看到"定位到好友 X / 校验通过 / 模拟发送"。确认无误后点「<b>立即发送</b>」。</div></div>
+    <div class="row"><div class="k">为什么必做</div><div class="v">干跑能验证"有没有定位到正确的人"，但验证不了"消息真的出去了"。<b>只有你打开手机抖音、看到那条消息躺在对话框里，才算部署成功。</b>这一步没做就等于没部署。</div></div>
+    <div class="row"><div class="k">注意</div><div class="v">如果日志里有"操作频繁/安全验证"，<b>立刻停手，等几小时再说</b>。继续重试只会把账号风控等级抬高。</div></div>
+    <div class="row"><div class="k">验证</div><div class="v">手机抖音 → 与该好友的聊天 → 看到你配置的那条文案，且时间对得上。</div></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h"><span class="num">09</span><span class="t">收口：重启验证 + 安全收紧</span><span class="who">服务器 + 控制台</span></div>
+  <div class="step-b">
+<pre><button class="copy">复制</button><code><span class="cm"># 1. 验证开机自启（最重要的一个验证）</span>
+reboot
+<span class="cm"># 等待 40 秒后重新 ssh 进来</span>
+systemctl is-enabled douyin-spark
+systemctl is-active douyin-spark
+free -h</code></pre>
+    <div class="row"><div class="k">作用</div><div class="v"><code class="inl">is-enabled</code> 返回 <b>enabled</b> 且 <code class="inl">is-active</code> 返回 <b>active</b>，说明云服务器被平台迁移/重启后能自己活过来——这是无人值守的前提。<code class="inl">free -h</code> 顺便确认 swap 还在。</div></div>
+    <div class="row"><div class="k">接着做</div><div class="v">回到控制台防火墙，把 <b>8000 端口的来源 IP 收紧到你当前 IP</b>（如果之前开得比较宽）；确认 22 端口也不是 <code class="inl">0.0.0.0/0</code>。</div></div>
+    <div class="row"><div class="k">最后</div><div class="v">在面板里把好友从 1 个扩到你真正要维护的数量（10~50 个），间隔保持 6~12 分钟不动。<b>人数越多间隔要越大</b>，50 个好友按 9 分钟均值算要跑 7 个多小时，跨到凌晨是正常的，不是卡住了。</div></div>
+  </div>
+</div>
+
+<h2><span class="n">05</span>装完之后：日常运维清单</h2>
+
+<table>
+  <thead><tr><th>情况</th><th>怎么判断</th><th>怎么处理</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>登录态过期</b><br><span class="dim">最常见的"故障"，几天到几周一次</span></td>
+      <td>面板顶部状态标红"登录态已过期"，或发送连续失败</td>
+      <td>回到第 04 步重跑 <code class="inl">extract_cookie.py</code> 扫码，再 <code class="inl">scp</code> 覆盖 <code class="inl">data/state.json</code>，面板重新上传即可。<b>不需要重装、不需要重启服务</b></td>
+    </tr>
+    <tr>
+      <td>提示"操作频繁"</td>
+      <td>日志出现安全验证关键词，本轮被熔断</td>
+      <td>把好友间隔调到 15~20 分钟、单次人数减半，当天别重试。这是账号在被降权，加频率只会更糟</td>
+    </tr>
+    <tr>
+      <td>某个好友一直发不出去</td>
+      <td>日志显示"找不到会话/切换校验失败"</td>
+      <td>先在网页端手动打开和 TA 的会话，再重新"获取聊天列表"；确认用的是完整昵称/备注名</td>
+    </tr>
+    <tr>
+      <td>服务挂了</td>
+      <td><code class="inl">systemctl is-active</code> 不是 active</td>
+      <td><code class="inl">journalctl -u douyin-spark -n 100 --no-pager</code> 看最后 100 行；多为内存不足或 Chromium 库缺失</td>
+    </tr>
+    <tr>
+      <td>抖音改版导致失效</td>
+      <td>大面积发送失败、页面元素定位不到</td>
+      <td>先去仓库看有没有 issue 和更新：<code class="inl">cd /opt/douyin-spark &amp;&amp; git pull &amp;&amp; systemctl restart douyin-spark</code>。<code class="inl">data/</code> 是你的数据，pull 不会覆盖它</td>
+    </tr>
+    <tr>
+      <td>想备份 / 迁移</td>
+      <td>—</td>
+      <td>只需备份 <code class="inl">/opt/douyin-spark/data/</code>（含登录态、好友勾选、配置、日志）。<code class="inl">scp -r root@IP:/opt/douyin-spark/data ./backup</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box warnbox">
+  <h4>三条不能碰的红线</h4>
+  <p><b>1. 不要在服务器上开浏览器刷抖音。</b>会白白吃掉流量包和内存，还会让这个 IP 的行为更像"机器"。</p>
+  <p><b>2. 不要把 8000 端口开放给 0.0.0.0/0。</b>面板一旦被扫到，别人能直接看到你的好友列表和账号状态。</p>
+  <p><b>3. 不要用主号第一次试。</b>先用小号跑通一轮（最好连续三天），确认不发错人、不漏发，再换主号。</p>
+</div>
+
+<h2><span class="n">06</span>总账</h2>
+<table>
+  <thead><tr><th>项目</th><th>金额</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>服务器（首月验证）</td><td class="num price">¥40</td><td>腾讯云轻量 2核2G/3M 月付，随时可退订止损</td></tr>
+    <tr><td>服务器（转年付）</td><td class="num price">¥408/年<br><span class="dim">≈¥34/月</span></td><td>12 个月档 85 折；续费按原价，到期前设提醒</td></tr>
+    <tr><td>软件</td><td class="num">¥0</td><td>Xiaowu 版为 MIT，个人使用无授权成本</td></tr>
+    <tr><td>你的一次性时间投入</td><td class="num">40~70 分钟</td><td>其中本机 Python 环境约 15 分钟，服务器部署约 20 分钟，验证约 15 分钟</td></tr>
+    <tr><td>你的持续维护</td><td class="num">每月 1 次 × 5 分钟</td><td>登录态过期时重扫码；这是所有同类方案都逃不掉的成本</td></tr>
+  </tbody>
+</table>
+
+<div class="box tip">
+  <h4>最后一句实话</h4>
+  <p>这套东西的稳定上限不在软件，而在抖音的风控策略。它大概能做到"大部分日子正常，偶尔要你重新扫码或调整频率"。如果你的需求只是记住发一句话，那 ¥34/月加每月 5 分钟维护，其实比手机日历提醒贵得多——<b>它真正的价值在于你确实没法每天固定时间摸到手机</b>，或者好友多到手发不过来。想清楚这一点再付款，比选哪个套餐更重要。</p>
+</div>
+
+<footer>
+  价格以腾讯云官方定价文档（2026-09-24 更新）为准，阿里云部分为社区活动口径，实付价格请以下单页面为准，促销与库存会随时变化。部署步骤依据 Xiaowu-0916/douyin-spark 的 README（最后提交 2026-08-20）整理，若仓库后续改动导致脚本行为变化，以仓库最新 README 为准。本手册未在真实账号上完整执行过，执行中遇到与本手册不符之处，优先相信 <code class="inl">journalctl</code> 日志和仓库文档。<br>
+  合规提醒：自动化发私信与抖音社区公约中"未经平台允许使用自动化手段"的条款相冲突，可能导致限流、功能限制或封禁；<code class="inl">state.json</code> 等同账号凭据，泄露等于账号被接管。请仅操作本人账号，控制频率与数量。
+</footer>
+
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function(b){
+  b.addEventListener('click',function(){
+    var pre=b.parentElement, clone=pre.cloneNode(true);
+    var btn=clone.querySelector('.copy'); if(btn) btn.remove();
+    var txt=clone.textContent;
+    navigator.clipboard.writeText(txt).then(function(){
+      b.textContent='已复制'; setTimeout(function(){b.textContent='复制'},1400);
+    }).catch(function(){ b.textContent='请手动选中'; setTimeout(function(){b.textContent='复制'},1600); });
+  });
+});
+</script>
+</body>
+</html>

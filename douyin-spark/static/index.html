@@ -1,0 +1,3149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>抖音续火花助手</title>
+  <script>
+    /* 首屏防闪烁：在样式加载前确定主题。无本地选择时跟随系统偏好 */
+    (function () {
+      try {
+        var t = localStorage.getItem('ds_theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+        document.documentElement.style.colorScheme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/vendor/element-plus.css" />
+  <style>
+    /* ==========================================================================
+       Midnight Slate · 统一深色
+       单一色阶（#0a0e14 → #222b39），全站无任何浅色/白色区块；
+       结构沿用：连排数据条 / 胶囊分段标签 / 内嵌深色日志
+       ========================================================================== */
+
+    /* ---------- 1. 设计令牌 ---------- */
+    :root {
+      color-scheme: dark;
+
+      /* 表面：五档同族色阶，靠明度差分层，不引入第二种色相 */
+      --bg-0: #0a0e14;
+      --surface-1: #121821;
+      --surface-2: #171f2a;
+      --surface-3: #1d2632;
+      --surface-4: #222b39;
+      --well: #080c11;              /* 日志/终端：最深的一档 */
+
+      /* 描边：统一用白色低透明度，避免出现灰白硬线 */
+      --rule: rgba(255, 255, 255, 0.075);
+      --rule-2: rgba(255, 255, 255, 0.13);
+      --rule-3: rgba(255, 255, 255, 0.2);
+
+      /* 文字：三档，全部通过 WCAG AA（正文 > 7:1，辅助 > 4.5:1） */
+      --tx: #e9eef7;
+      --tx-2: #a9b4c4;
+      --tx-3: #8a94a5;
+
+      /* 强调：靛蓝提亮以适配深底（#6d8dff on #121821 ≈ 6.4:1） */
+      --accent: #6d8dff;
+      --accent-2: #8aa4ff;
+      --accent-deep: #4560d6;      /* 实心按钮底，配白字（≥5.3:1） */
+      --accent-deep-2: #3a51c2;
+      --accent-soft: rgba(109, 141, 255, 0.12);
+      --accent-line: rgba(109, 141, 255, 0.34);
+
+      --ok: #4fd6a0;
+      --ok-soft: rgba(79, 214, 160, 0.12);
+      --warn: #f2b95c;
+      --warn-soft: rgba(242, 185, 92, 0.12);
+      --bad: #ff8085;
+      --bad-soft: rgba(255, 128, 133, 0.12);
+
+      /* 字号 */
+      --fs-xs: 11.5px;
+      --fs-sm: 12.5px;
+      --fs-md: 13.5px;
+      --fs-lg: 15px;
+      --fs-xl: 17px;
+      --fs-2xl: 21px;
+      --fs-3xl: 30px;
+
+      /* 间距 */
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 24px;
+      --sp-8: 32px;
+
+      /* 形态 */
+      --r-lg: 14px;
+      --r-md: 10px;
+      --r-sm: 7px;
+      --r-pill: 999px;
+      --sh-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 30px -24px rgba(0, 0, 0, 1);
+      --sh-pop: 0 30px 70px -30px rgba(0, 0, 0, 1), 0 2px 8px rgba(0, 0, 0, 0.6);
+
+      /* 动效 */
+      --d-1: 120ms;
+      --d-2: 200ms;
+      --d-3: 320ms;
+      --d-4: 520ms;
+      --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --e-soft: cubic-bezier(0.4, 0, 0.2, 1);
+      --e-spring: cubic-bezier(0.2, 1.12, 0.36, 1);
+      --ease: var(--e-out);
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+        "JetBrains Mono", "Courier New", monospace;
+
+      /* 主题可覆写量：深浅两套主题只改这里，组件层一律引用变量 */
+      --header-bg: rgba(10, 14, 20, 0.86);
+      --glow-1: rgba(109, 141, 255, 0.06);
+      --glow-2: rgba(79, 214, 160, 0.035);
+      --noise-op: 0.022;
+      --sel-bg: rgba(109, 141, 255, 0.32);
+      --sel-tx: #ffffff;
+      --hover-bg: rgba(255, 255, 255, 0.045);
+      --row-hover: rgba(255, 255, 255, 0.025);
+      --row-line: rgba(255, 255, 255, 0.05);
+      --disabled-bg: rgba(255, 255, 255, 0.035);
+      --chk-bg: rgba(255, 255, 255, 0.04);
+      --scroll: rgba(255, 255, 255, 0.16);
+      --log-tx: #b9c4d4;
+      --log-inset: rgba(255, 255, 255, 0.03);
+      --log-deep: rgba(0, 0, 0, 1);
+      --log-strip: rgba(255, 255, 255, 0.02);
+      --tip-bg: #05080c;
+      --tab-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+      --progress-track: rgba(255, 255, 255, 0.07);
+      --progress-inset: rgba(0, 0, 0, 0.5);
+      --loading-bg: rgba(10, 14, 20, 0.72);
+      --time-invert: 0.72;
+      --abg0: rgba(10, 14, 20, 0);
+      --abg1: rgba(10, 14, 20, 0.96);
+      --switch-off: rgba(255, 255, 255, 0.14);
+      --accent-glow: rgba(109, 141, 255, 0.16);
+      --accent-glow-2: rgba(109, 141, 255, 0.22);
+      --me-bubble-bg: rgba(109, 141, 255, 0.16);
+      --me-bubble-line: rgba(109, 141, 255, 0.28);
+
+      /* Element Plus 变量层：全部落到同一深色阶 */
+      --el-color-primary: #6d8dff;
+      --el-color-primary-light-3: #8aa4ff;
+      --el-color-primary-light-5: #a6bbff;
+      --el-color-primary-light-7: #33405f;
+      --el-color-primary-light-8: #28334d;
+      --el-color-primary-light-9: rgba(109, 141, 255, 0.14);
+      --el-color-primary-dark-2: #4b6ce8;
+      --el-color-success: #4fd6a0;
+      --el-color-success-light-9: rgba(79, 214, 160, 0.12);
+      --el-color-warning: #f2b95c;
+      --el-color-warning-light-9: rgba(242, 185, 92, 0.12);
+      --el-color-danger: #ff8085;
+      --el-color-danger-light-9: rgba(255, 128, 133, 0.12);
+      --el-color-info: #8a94a5;
+      --el-color-info-light-9: rgba(138, 148, 165, 0.12);
+      --el-bg-color: var(--surface-1);
+      --el-bg-color-page: var(--bg-0);
+      --el-bg-color-overlay: var(--surface-3);
+      --el-text-color-primary: var(--tx);
+      --el-text-color-regular: var(--tx-2);
+      --el-text-color-secondary: var(--tx-3);
+      --el-text-color-placeholder: #6b7789;
+      --el-text-color-disabled: #5b6576;
+      --el-border-color: var(--rule);
+      --el-border-color-light: var(--rule);
+      --el-border-color-lighter: rgba(255, 255, 255, 0.05);
+      --el-border-color-extra-light: rgba(255, 255, 255, 0.035);
+      --el-fill-color: rgba(255, 255, 255, 0.06);
+      --el-fill-color-light: rgba(255, 255, 255, 0.045);
+      --el-fill-color-lighter: rgba(255, 255, 255, 0.03);
+      --el-fill-color-blank: var(--surface-1);
+      --el-mask-color: rgba(4, 6, 10, 0.78);
+      --el-box-shadow-light: 0 10px 30px rgba(0, 0, 0, 0.6);
+      --el-font-family: var(--font-sans);
+      --el-border-radius-base: 9px;
+    }
+
+    /* ---------- 1b. 浅色主题：Paper Light，与深色共用同一套结构 ---------- */
+    html[data-theme="light"] {
+      color-scheme: light;
+
+      --bg-0: #edf0f5;
+      --surface-1: #ffffff;
+      --surface-2: #f5f7fb;
+      --surface-3: #ffffff;
+      --surface-4: #eef1f6;
+      --well: #f0f3f8;
+
+      --rule: rgba(15, 23, 42, 0.1);
+      --rule-2: rgba(15, 23, 42, 0.17);
+      --rule-3: rgba(15, 23, 42, 0.3);
+
+      /* 文字对比度（白底）：正文 ≈ 13.9:1，辅助 ≈ 6.4:1，弱辅助 ≈ 4.7:1，全过 AA */
+      --tx: #1b2433;
+      --tx-2: #424d61;
+      --tx-3: #68738a;
+
+      /* 浅色下强调色加深一档，保证白底文字/描边对比 */
+      --accent: #4560d6;
+      --accent-2: #3349b4;
+      --accent-deep: #4560d6;
+      --accent-deep-2: #3a51c2;
+      --accent-soft: rgba(69, 96, 214, 0.1);
+      --accent-line: rgba(69, 96, 214, 0.34);
+
+      --ok: #0b8a5f;
+      --ok-soft: rgba(11, 138, 95, 0.1);
+      --warn: #a06a06;
+      --warn-soft: rgba(160, 106, 6, 0.1);
+      --bad: #cf3a42;
+      --bad-soft: rgba(207, 58, 66, 0.09);
+
+      --sh-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 12px 28px -20px rgba(16, 24, 40, 0.22);
+      --sh-pop: 0 28px 64px -26px rgba(16, 24, 40, 0.35), 0 2px 8px rgba(16, 24, 40, 0.08);
+
+      --header-bg: rgba(255, 255, 255, 0.85);
+      --glow-1: rgba(69, 96, 214, 0.07);
+      --glow-2: rgba(11, 138, 95, 0.05);
+      --noise-op: 0.03;
+      --sel-bg: rgba(69, 96, 214, 0.22);
+      --sel-tx: inherit;
+      --hover-bg: rgba(15, 23, 42, 0.05);
+      --row-hover: rgba(15, 23, 42, 0.03);
+      --row-line: rgba(15, 23, 42, 0.07);
+      --disabled-bg: rgba(15, 23, 42, 0.05);
+      --chk-bg: rgba(15, 23, 42, 0.03);
+      --scroll: rgba(15, 23, 42, 0.22);
+      --log-tx: #3b4762;
+      --log-inset: rgba(255, 255, 255, 0.7);
+      --log-deep: rgba(16, 24, 40, 0.14);
+      --log-strip: rgba(15, 23, 42, 0.03);
+      --tip-bg: #1b2433;
+      --tab-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(16, 24, 40, 0.14);
+      --progress-track: rgba(15, 23, 42, 0.08);
+      --progress-inset: rgba(16, 24, 40, 0.14);
+      --loading-bg: rgba(255, 255, 255, 0.72);
+      --time-invert: 0.32;
+      --abg0: rgba(237, 240, 245, 0);
+      --abg1: rgba(237, 240, 245, 0.96);
+      --switch-off: rgba(15, 23, 42, 0.18);
+      --accent-glow: rgba(69, 96, 214, 0.14);
+      --accent-glow-2: rgba(69, 96, 214, 0.2);
+      --me-bubble-bg: rgba(69, 96, 214, 0.1);
+      --me-bubble-line: rgba(69, 96, 214, 0.3);
+
+      --el-color-primary: #4560d6;
+      --el-color-primary-light-3: #6d8dff;
+      --el-color-primary-light-5: #8aa4ff;
+      --el-color-primary-light-7: #c7d2f6;
+      --el-color-primary-light-8: #dbe3fa;
+      --el-color-primary-light-9: rgba(69, 96, 214, 0.1);
+      --el-color-primary-dark-2: #3a51c2;
+      --el-color-success: #0b8a5f;
+      --el-color-success-light-9: rgba(11, 138, 95, 0.1);
+      --el-color-warning: #a06a06;
+      --el-color-warning-light-9: rgba(160, 106, 6, 0.1);
+      --el-color-danger: #cf3a42;
+      --el-color-danger-light-9: rgba(207, 58, 66, 0.09);
+      --el-color-info: #68738a;
+      --el-color-info-light-9: rgba(104, 115, 138, 0.12);
+      --el-text-color-placeholder: #98a2b6;
+      --el-text-color-disabled: #a3adbf;
+      --el-border-color-lighter: rgba(15, 23, 42, 0.06);
+      --el-border-color-extra-light: rgba(15, 23, 42, 0.04);
+      --el-fill-color: rgba(15, 23, 42, 0.06);
+      --el-fill-color-light: rgba(15, 23, 42, 0.045);
+      --el-fill-color-lighter: rgba(15, 23, 42, 0.03);
+      --el-mask-color: rgba(15, 23, 42, 0.45);
+      --el-box-shadow-light: 0 10px 30px rgba(16, 24, 40, 0.12);
+    }
+
+    /* 主题切换瞬间的全局平滑过渡（尊重减少动态偏好） */
+    @media (prefers-reduced-motion: no-preference) {
+      html.theme-fade,
+      html.theme-fade *,
+      html.theme-fade *::before,
+      html.theme-fade *::after {
+        transition: background-color 260ms ease, border-color 260ms ease,
+                    color 260ms ease, box-shadow 260ms ease,
+                    fill 260ms ease, stroke 260ms ease !important;
+      }
+    }
+
+    /* 深浅切换按钮 */
+    .theme-btn {
+      width: 32px;
+      height: 32px;
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      border: 1px solid var(--rule-2);
+      background: var(--surface-2);
+      color: var(--tx-2);
+      cursor: pointer;
+      transition: background var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft), transform var(--d-1) var(--e-soft);
+    }
+    .theme-btn:hover { background: var(--surface-3); color: var(--tx); border-color: var(--rule-3); }
+    .theme-btn:active { transform: scale(0.94); }
+    .theme-btn:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+    .theme-btn svg { width: 16px; height: 16px; display: block; }
+    .theme-btn svg .ray { transition: transform var(--d-3) var(--e-spring), opacity var(--d-2) var(--e-soft); transform-origin: center; }
+
+    /* ---------- 2. 基底 ---------- */
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-color: var(--bg-0);
+      /* 只留一层极弱的冷光，不制造与面板的明暗断层 */
+      background-image:
+        radial-gradient(900px 520px at 88% -10%, var(--glow-1), transparent 62%),
+        radial-gradient(700px 420px at -6% 106%, var(--glow-2), transparent 62%);
+      background-attachment: fixed;
+      color: var(--tx);
+      font-family: var(--font-sans);
+      font-size: var(--fs-md);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* 细颗粒：用 screen 提亮而非 multiply 压黑，暗底才不会发脏 */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: var(--noise-op);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    ::selection { background: var(--sel-bg); color: var(--sel-tx); }
+
+    #app { position: relative; z-index: 1; animation: appIn var(--d-4) var(--e-out) both; }
+    @keyframes appIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 26px var(--sp-5) 72px;
+    }
+
+    /* ---------- 3. 顶部导航（GitHub 风格：全局栏 + 二级标签栏） ---------- */
+    .gh-top {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--header-bg);
+      backdrop-filter: saturate(140%) blur(14px);
+      -webkit-backdrop-filter: saturate(140%) blur(14px);
+      border-bottom: 1px solid var(--rule);
+    }
+    .gh-top::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+      pointer-events: none;
+    }
+
+    .gh-bar {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 var(--sp-5);
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .gh-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 4px 7px 4px 4px;
+      margin-left: -4px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background var(--d-2) var(--e-soft);
+      min-width: 0;
+    }
+    .gh-brand:hover { background: var(--hover-bg); }
+    .gh-mark {
+      width: 30px;
+      height: 30px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: linear-gradient(142deg, #ff9a52, #ff5f57 56%, #d2478f);
+      color: #fff;
+      font-size: 15px;
+      line-height: 1;
+      box-shadow: 0 8px 18px -10px rgba(255, 95, 87, 0.9);
+    }
+    .gh-name {
+      font-size: 15px;
+      font-weight: 680;
+      letter-spacing: -0.02em;
+      color: var(--tx);
+      white-space: nowrap;
+    }
+    .gh-path {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--tx-3);
+      white-space: nowrap;
+    }
+    .gh-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--rule-2);
+      background: var(--surface-2);
+      font-size: 11.5px;
+      font-weight: 520;
+      color: var(--tx-2);
+      white-space: nowrap;
+      transition: border-color var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft);
+    }
+    .gh-status .gh-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex: none;
+      background: var(--tx-3);
+    }
+    .gh-status.st-ok { color: var(--tx-2); border-color: rgba(79, 214, 160, 0.3); }
+    .gh-status.st-ok .gh-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+    .gh-status.st-expired,
+    .gh-status.st-failed { color: var(--bad); border-color: rgba(255, 128, 133, 0.32); }
+    .gh-status.st-expired .gh-dot,
+    .gh-status.st-failed .gh-dot { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+    .gh-status.st-partial,
+    .gh-status.st-running { color: var(--warn); border-color: rgba(242, 185, 92, 0.32); }
+    .gh-status.st-partial .gh-dot,
+    .gh-status.st-running .gh-dot {
+      background: var(--warn);
+      box-shadow: 0 0 0 3px var(--warn-soft);
+      animation: tickPulse 1.9s var(--e-soft) infinite;
+    }
+
+    .gh-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .gh-icon {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--tx-2);
+      cursor: pointer;
+      transition: background var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft), transform var(--d-1) var(--e-soft);
+    }
+    .gh-icon:hover { background: var(--hover-bg); color: var(--tx); border-color: var(--rule); }
+    .gh-icon:active { transform: scale(0.94); }
+    .gh-icon svg { width: 16px; height: 16px; display: block; }
+
+    /* 返回我的主页：与 gh-icon 同高，带文字，有未保存修改时高亮 */
+    .gh-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 11px 0 9px; margin-right: 2px;
+      border: 1px solid var(--rule); border-radius: 8px;
+      background: transparent; color: var(--tx-2);
+      font-size: 12.5px; font-weight: 500; font-family: inherit;
+      cursor: pointer; position: relative; white-space: nowrap;
+      transition: background var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft), transform var(--d-1) var(--e-soft);
+    }
+    .gh-back:hover { background: var(--hover-bg); color: var(--tx); border-color: var(--tx-3); }
+    .gh-back:active { transform: scale(0.97); }
+    .gh-back svg { width: 15px; height: 15px; display: block; }
+    .gh-back.has-dirty { color: var(--warn); border-color: var(--warn); }
+    .gh-back .dirty-dot {
+      position: absolute; top: 4px; right: 4px; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--warn);
+    }
+    @media (max-width: 620px) {
+      .gh-back span { display: none; }
+      .gh-back { padding: 0 9px; }
+    }
+
+    /* 二级标签栏 */
+    .gh-tabs {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 var(--sp-5);
+      display: flex;
+      align-items: stretch;
+      gap: 2px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .gh-tabs::-webkit-scrollbar { display: none; }
+    .gh-tab {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 44px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      color: var(--tx-3);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 520;
+      letter-spacing: -0.005em;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: color var(--d-2) var(--e-soft), background var(--d-2) var(--e-soft);
+    }
+    .gh-tab svg { width: 15px; height: 15px; flex: none; opacity: 0.8; }
+    .gh-tab:hover { color: var(--tx); background: var(--hover-bg); }
+    .gh-tab:hover svg { opacity: 1; }
+    .gh-tab.is-active { color: var(--tx); font-weight: 620; }
+    .gh-tab.is-active svg { opacity: 1; color: var(--accent); }
+    .gh-tab.is-active::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 2px 2px 0 0;
+      background: var(--accent);
+      animation: tabIn var(--d-3) var(--e-out) both;
+    }
+    @keyframes tabIn {
+      from { transform: scaleX(0.35); opacity: 0; }
+      to   { transform: none; opacity: 1; }
+    }
+    .gh-badge {
+      min-width: 17px;
+      height: 17px;
+      padding: 0 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-pill);
+      background: var(--accent-deep);
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 640;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    /* 页面标题区 */
+    .page-head {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: var(--sp-4);
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .page-title {
+      font-size: 23px;
+      font-weight: 680;
+      letter-spacing: -0.035em;
+      color: var(--tx);
+      margin: 0;
+      line-height: 1.2;
+    }
+    .page-sub {
+      margin: 0 0 2px;
+      font-size: 12.5px;
+      color: var(--tx-3);
+    }
+    .page-side {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--tx-3);
+    }
+
+    /* 页脚 */
+    .site-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid var(--rule);
+      font-size: 11.5px;
+      color: var(--tx-3);
+    }
+    .site-foot .right { margin-left: auto; }
+    .site-foot .sep { color: var(--rule-3); }
+
+    @keyframes tickPulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.55; }
+    }
+
+    /* ---------- 4. 连排数据条 ---------- */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;                            /* 1px 缝隙露出底色 → 发丝分割线 */
+      background: var(--rule);             /* 缝隙即分割线颜色，不是浅色块 */
+      border: 1px solid var(--rule);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin-bottom: var(--sp-4);
+      box-shadow: var(--sh-card);
+      animation: settle var(--d-4) var(--e-out) both;
+    }
+    .cards .el-card {
+      position: relative;
+      overflow: hidden;
+      background: var(--surface-1);
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      animation: cellIn var(--d-4) var(--e-out) both;
+      transition: background var(--d-2) var(--e-soft);
+    }
+    .cards .el-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--d-3) var(--e-out);
+      z-index: 2;
+    }
+    .cards .el-card:hover { background: var(--surface-2); }
+    .cards .el-card:hover::before { transform: scaleX(1); }
+    .cards .el-card:nth-child(1) { animation-delay: 0.02s; }
+    .cards .el-card:nth-child(2) { animation-delay: 0.07s; }
+    .cards .el-card:nth-child(3) { animation-delay: 0.12s; }
+    .cards .el-card:nth-child(4) { animation-delay: 0.17s; }
+    .cards .el-card:nth-child(5) { animation-delay: 0.22s; }
+    @keyframes settle {
+      from { opacity: 0; transform: translateY(9px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes cellIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .cards .el-card__body { padding: 15px 18px 17px; }
+
+    .card-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--tx-3);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      margin-bottom: 7px;
+    }
+    .card-label::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 1px;
+      background: var(--rule-3);
+      transition: background var(--d-2) var(--e-soft);
+      flex: none;
+    }
+    .cards .el-card:hover .card-label::before { background: var(--accent); }
+
+    .card-value {
+      font-size: var(--fs-2xl);
+      font-weight: 660;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+      color: var(--tx);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .card-value--date {
+      font-size: var(--fs-lg);
+      letter-spacing: -0.015em;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      color: var(--tx);
+    }
+    .card-hint { margin-top: 4px; font-size: var(--fs-xs); color: var(--tx-3); }
+    .card-hint.explv-ok { color: var(--tx-3); }
+    .card-hint.explv-warning { color: var(--warn); }
+    .card-hint.explv-critical,
+    .card-hint.explv-expired { color: var(--bad); }
+
+    /* ---------- 5. 常规卡片 ---------- */
+    .el-card {
+      background: var(--surface-1);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-lg);
+      box-shadow: var(--sh-card);
+      transition: border-color var(--d-2) var(--e-soft);
+    }
+    .el-card__body { padding: var(--sp-5); }
+    .el-card.is-never-shadow { box-shadow: var(--sh-card); }
+
+    /* ---------- 6. 标签页：胶囊分段 ---------- */
+    /* 标签栏已上移至顶部导航，组件内头部隐藏（仅供 v-model 驱动面板切换） */
+    .el-tabs__header { display: none; }
+    .el-tabs__nav-wrap::after { display: none; }
+    .el-tabs__nav {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      background: var(--well);             /* 比面板更暗的凹槽，不用浅色轨道 */
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+    }
+    .el-tabs__active-bar { display: none; }
+    .el-tabs__nav-prev,
+    .el-tabs__nav-next { display: none !important; }
+    .el-tabs__nav-scroll { overflow: visible; }
+    .el-tabs__item {
+      height: 32px;
+      line-height: 32px;
+      padding: 0 16px;
+      border-radius: var(--r-pill);
+      color: var(--tx-3);
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      transition: color var(--d-2) var(--e-soft),
+                  background var(--d-2) var(--e-soft),
+                  box-shadow var(--d-2) var(--e-soft);
+    }
+    .el-tabs__item:hover { color: var(--tx-2); background: var(--hover-bg); }
+    .el-tabs__item.is-active {
+      color: var(--tx);
+      font-weight: 620;
+      background: var(--surface-3);
+      box-shadow: var(--tab-shadow);
+    }
+    .el-tabs__item:focus-visible {
+      outline: 2px solid var(--accent-line);
+      outline-offset: 1px;
+    }
+    .el-tabs__content { animation: pageShift var(--d-3) var(--e-out) both; }
+    @keyframes pageShift {
+      from { opacity: 0; transform: translateY(7px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ---------- 7. 按钮 ---------- */
+    .el-button {
+      position: relative;
+      overflow: hidden;
+      height: 35px;
+      padding: 0 15px;
+      border-radius: 9px;
+      font-size: var(--fs-md);
+      font-weight: 560;
+      letter-spacing: -0.005em;
+      transition: transform var(--d-1) var(--e-soft),
+                  background var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft),
+                  color var(--d-2) var(--e-soft),
+                  box-shadow var(--d-2) var(--e-soft);
+    }
+    .el-button--small { height: 29px; padding: 0 11px; font-size: var(--fs-sm); }
+    .el-button:not(.is-text):active { transform: scale(0.978); }
+
+    .el-button--default {
+      background: var(--surface-2);
+      border: 1px solid var(--rule-2);
+      color: var(--tx-2);
+      box-shadow: none;
+    }
+    .el-button--default:hover {
+      background: var(--surface-3);
+      border-color: var(--rule-3);
+      color: var(--tx);
+    }
+
+    .el-button--primary {
+      background: var(--accent-deep);
+      border: 1px solid var(--accent-deep);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 8px 20px -14px rgba(69, 96, 214, 0.9);
+    }
+    .el-button--primary:hover {
+      background: var(--accent-deep-2);
+      border-color: var(--accent-deep-2);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px -14px rgba(69, 96, 214, 1);
+    }
+    .el-button--primary:active { transform: translateY(0) scale(0.985); }
+
+    .el-button--danger {
+      background: var(--surface-2);
+      border: 1px solid rgba(255, 128, 133, 0.32);
+      color: var(--bad);
+      box-shadow: none;
+    }
+    .el-button--danger:hover:not(.is-disabled) {
+      background: var(--bad-soft);
+      border-color: rgba(255, 128, 133, 0.55);
+      color: #ffa1a5;
+    }
+    .el-button--danger.is-plain {
+      background: var(--surface-2);
+      border-color: rgba(255, 128, 133, 0.32);
+      color: var(--bad);
+    }
+    .el-button--danger.is-plain:hover:not(.is-disabled) {
+      background: var(--bad-soft);
+      border-color: rgba(255, 128, 133, 0.55);
+      color: #ffa1a5;
+    }
+    .el-button--primary.is-plain {
+      background: var(--accent-soft);
+      border-color: var(--accent-line);
+      color: var(--accent-2);
+    }
+    .el-button--success {
+      background: var(--surface-2);
+      border: 1px solid rgba(79, 214, 160, 0.3);
+      color: var(--ok);
+      box-shadow: none;
+    }
+    .el-button--success:hover {
+      background: var(--ok-soft);
+      border-color: rgba(79, 214, 160, 0.55);
+      color: #78e6bb;
+    }
+    .el-button.is-disabled,
+    .el-button.is-disabled:hover,
+    .el-button.is-disabled.is-plain,
+    .el-button--danger.is-disabled,
+    .el-button--danger.is-disabled:hover {
+      background: var(--disabled-bg) !important;
+      border-color: var(--rule) !important;
+      color: var(--el-text-color-disabled) !important;
+      box-shadow: none !important;
+      transform: none;
+      opacity: 1;
+    }
+    .el-button:focus-visible {
+      outline: 2px solid var(--accent-line);
+      outline-offset: 2px;
+    }
+
+    /* ---------- 8. 表单 ---------- */
+    .el-form-item { margin-bottom: var(--sp-4); }
+    .el-form-item__label {
+      color: var(--tx-2);
+      font-size: var(--fs-sm);
+      font-weight: 520;
+    }
+    .el-input__wrapper,
+    .el-textarea__inner {
+      background: var(--surface-2);
+      box-shadow: inset 0 0 0 1px var(--rule);
+      border-radius: 9px;
+      transition: box-shadow var(--d-2) var(--e-soft), background var(--d-2) var(--e-soft);
+    }
+    .el-input__wrapper { min-height: 35px; }
+    .el-input__wrapper:hover,
+    .el-textarea__inner:hover {
+      box-shadow: inset 0 0 0 1px var(--rule-2);
+      background: var(--surface-3);
+    }
+    .el-input__wrapper.is-focus,
+    .el-input__wrapper:focus-within,
+    .el-textarea__inner:focus {
+      background: var(--surface-3);
+      box-shadow: inset 0 0 0 1px var(--accent),
+        0 0 0 3px var(--accent-glow);
+    }
+    .el-input__inner,
+    .el-textarea__inner { color: var(--tx); font-size: var(--fs-md); }
+    .el-textarea__inner {
+      line-height: 1.7;
+      padding: 9px 12px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .el-textarea__inner::placeholder,
+    .el-input__inner::placeholder { color: #6b7789; }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(var(--time-invert)); cursor: pointer; }
+    .el-input-number { width: 118px; }
+    .el-input-number .el-input__wrapper { padding-left: 6px; padding-right: 6px; }
+    .el-input-number__decrease,
+    .el-input-number__increase {
+      background: var(--surface-3);
+      color: var(--tx-2);
+      border-color: var(--rule);
+      transition: color var(--d-1) var(--e-soft), background var(--d-1) var(--e-soft);
+    }
+    .el-input-number__decrease:hover,
+    .el-input-number__increase:hover { color: var(--accent-2); background: var(--accent-soft); }
+
+    /* ---------- 9. 复选 / 标签 / 提示 ---------- */
+    .el-checkbox {
+      --el-checkbox-text-color: var(--tx-2);
+      --el-checkbox-checked-text-color: var(--tx);
+      height: 27px;
+      transition: color var(--d-2) var(--e-soft);
+    }
+    .el-checkbox:hover { color: var(--tx); }
+    .el-checkbox__inner {
+      border-radius: 4px;
+      border-color: var(--rule-2);
+      background: var(--chk-bg);
+      transition: background var(--d-2) var(--e-soft), border-color var(--d-2) var(--e-soft),
+                  box-shadow var(--d-2) var(--e-soft);
+    }
+    .el-checkbox:hover .el-checkbox__inner {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .el-checkbox__input.is-checked .el-checkbox__inner {
+      background: var(--accent-deep);
+      border-color: var(--accent-deep);
+    }
+    .el-checkbox__input.is-checked .el-checkbox__inner::after {
+      animation: checkPop 0.26s var(--e-spring);
+    }
+    @keyframes checkPop {
+      0%   { transform: rotate(45deg) scale(0.3); opacity: 0; }
+      65%  { transform: rotate(45deg) scale(1.16); opacity: 1; }
+      100% { transform: rotate(45deg) scale(1); }
+    }
+
+    .el-tag {
+      border-radius: var(--r-pill);
+      border: 1px solid transparent;
+      font-weight: 520;
+      font-size: var(--fs-xs);
+      padding: 0 8px;
+      --el-tag-border-radius: var(--r-pill);
+      transition: transform var(--d-1) var(--e-soft), filter var(--d-2) var(--e-soft);
+    }
+    .el-tag:hover { filter: brightness(1.12); }
+    .el-tag--success {
+      background: var(--ok-soft);
+      border-color: rgba(79, 214, 160, 0.26);
+      color: var(--ok);
+    }
+    .el-tag--danger {
+      background: var(--bad-soft);
+      border-color: rgba(255, 128, 133, 0.26);
+      color: var(--bad);
+    }
+    .el-tag--warning {
+      background: var(--warn-soft);
+      border-color: rgba(242, 185, 92, 0.26);
+      color: var(--warn);
+    }
+    .el-tag--info {
+      background: rgba(138, 148, 165, 0.12);
+      border-color: rgba(138, 148, 165, 0.24);
+      color: var(--tx-2);
+    }
+
+    /* 联系人区 */
+    .contacts-box {
+      position: relative;
+      margin-bottom: var(--sp-4);
+      max-height: 268px;
+      overflow: auto;
+      background: var(--well);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-md);
+      padding: 10px 14px;
+      transition: border-color var(--d-2) var(--e-soft);
+    }
+    .contacts-box:hover { border-color: var(--rule-2); }
+    .contacts-box .el-checkbox {
+      border-radius: 6px;
+      padding: 0 5px;
+      transition: background var(--d-1) var(--e-soft);
+    }
+    .contacts-box .el-checkbox:hover { background: var(--hover-bg); }
+
+    .action-bar {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: var(--sp-1);
+    }
+    .log-toolbar {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      margin-bottom: var(--sp-3);
+    }
+    .muted-hint { color: var(--tx-3); font-size: var(--fs-sm); line-height: 1.65; }
+    .stat-ok { color: var(--ok); font-size: var(--fs-md); font-weight: 560; }
+    .stat-bad { color: var(--bad); font-size: var(--fs-md); font-weight: 560; }
+
+    /* ---------- 10. 结果区 ---------- */
+    .result-box {
+      margin-top: var(--sp-4);
+      padding: var(--sp-3) var(--sp-4);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-md);
+      background: var(--surface-2);
+      animation: pageShift var(--d-3) var(--e-out) both;
+    }
+    .el-divider__text {
+      background: var(--surface-1);
+      color: var(--tx-3);
+      font-size: var(--fs-xs);
+      letter-spacing: 0.03em;
+      font-weight: 520;
+    }
+    .el-divider { border-color: var(--rule); }
+    .el-divider--horizontal { margin: var(--sp-4) 0; }
+
+    /* ---------- 11. 日志：更深的凹槽，靠描边而非明暗跳变区分 ---------- */
+    .log-pre {
+      position: relative;
+      background: var(--well);
+      color: var(--log-tx);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-md);
+      padding: 40px 16px 14px;
+      height: 440px;
+      overflow: auto;
+      font-size: 12.2px;
+      line-height: 1.78;
+      white-space: pre-wrap;
+      font-family: var(--font-mono);
+      tab-size: 2;
+      box-shadow: inset 0 1px 0 var(--log-inset),
+                  inset 0 20px 30px -26px var(--log-deep);
+    }
+    .log-pre::before {
+      content: "";
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow: 17px 0 0 #febc2e, 34px 0 0 #28c840;
+      opacity: 0.5;   /* 压低彩色点，避免破坏统一色系 */
+    }
+    .log-pre::after {
+      content: "";
+      position: absolute;
+      top: 15px;
+      left: 0;
+      right: 0;
+      height: 27px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--log-strip);
+      pointer-events: none;
+    }
+
+    /* ---------- 12. 弹层 ---------- */
+    .el-dialog {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--rule-2);
+      background: var(--surface-3);
+      box-shadow: var(--sh-pop);
+      animation: bloom var(--d-3) var(--e-spring) both;
+    }
+    @keyframes bloom {
+      from { opacity: 0; transform: translateY(10px) scale(0.975); }
+      to   { opacity: 1; transform: none; }
+    }
+    .el-dialog__title { color: var(--tx); font-weight: 680; letter-spacing: -0.015em; }
+    .el-dialog__header { padding-bottom: var(--sp-2); }
+    .el-overlay { backdrop-filter: blur(3px); }
+
+    .el-message-box {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--rule-2);
+      background: var(--surface-3);
+      box-shadow: var(--sh-pop);
+      animation: bloom var(--d-3) var(--e-spring) both;
+    }
+    .el-message-box__title { font-weight: 660; color: var(--tx); }
+    .el-message-box__message { color: var(--tx-2); line-height: 1.75; }
+    .dialog-hint { margin-top: 0; color: var(--tx-3); font-size: var(--fs-md); line-height: 1.75; }
+
+    .el-message {
+      border-radius: var(--r-md);
+      border: 1px solid var(--rule-2);
+      background: var(--surface-3);
+      box-shadow: var(--sh-pop);
+      animation: dropIn var(--d-3) var(--e-spring) both;
+    }
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+      to   { opacity: 1; transform: none; }
+    }
+    .el-message__content { color: var(--tx) !important; font-size: var(--fs-md); }
+
+    .el-alert {
+      border-radius: var(--r-md);
+      border: 1px solid var(--rule);
+      padding: 11px 14px;
+    }
+    .el-alert--error.is-light { background: var(--bad-soft); border-color: rgba(255, 128, 133, 0.24); }
+    .el-alert--error.is-light .el-alert__title { color: var(--bad); }
+    .el-alert--warning.is-light { background: var(--warn-soft); border-color: rgba(242, 185, 92, 0.24); }
+    .el-alert--warning.is-light .el-alert__title { color: var(--warn); }
+
+    .el-tooltip__popper,
+    .el-popper.is-dark {
+      background: var(--tip-bg) !important;
+      border: 1px solid var(--rule-2) !important;
+      border-radius: 8px !important;
+      font-size: var(--fs-sm);
+      max-width: 320px;
+      line-height: 1.6;
+      box-shadow: var(--sh-pop);
+    }
+    .el-upload { display: inline-block; }
+
+    /* ---------- 13. 滚动条 ---------- */
+    * { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scroll);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+      transition: background var(--d-2) var(--e-soft);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: content-box; }
+
+    /* ---------- 14. 加载态 ---------- */
+    .el-loading-mask {
+      background: var(--loading-bg);
+      backdrop-filter: blur(3px);
+      border-radius: var(--r-lg);
+    }
+    .el-loading-spinner .circular { width: 28px; height: 28px; }
+    .el-loading-spinner .path {
+      stroke: var(--accent);
+      stroke-linecap: round;
+      animation: dash 1.3s var(--e-soft) infinite;
+    }
+    @keyframes dash {
+      0%   { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+      50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+      100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+    }
+    .el-loading-spinner .el-loading-text { color: var(--tx-3); font-size: var(--fs-sm); }
+
+    /* ---------- 14.5 进度条 ---------- */
+    .el-progress-bar__outer {
+      background: var(--progress-track);
+      border-radius: var(--r-pill);
+      overflow: hidden;
+      box-shadow: inset 0 1px 2px var(--progress-inset);
+    }
+    .el-progress-bar__inner {
+      background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+      border-radius: var(--r-pill);
+      position: relative;
+      overflow: hidden;
+      transition: width var(--d-3) var(--e-out);
+    }
+    .el-progress-bar__inner::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(
+        115deg,
+        rgba(255, 255, 255, 0) 0 34%,
+        rgba(255, 255, 255, 0.26) 50%,
+        rgba(255, 255, 255, 0) 66% 100%
+      );
+      background-size: 220% 100%;
+      animation: slide 2.2s linear infinite;
+    }
+    @keyframes slide {
+      from { background-position: 120% 0; }
+      to   { background-position: -120% 0; }
+    }
+
+    /* ---------- 14.6 告警条 ---------- */
+    .alert-banner {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: var(--sp-4);
+      padding: 13px 15px 13px 18px;
+      border-radius: var(--r-md);
+      border: 1px solid rgba(255, 128, 133, 0.26);
+      background: var(--surface-2);
+      box-shadow: var(--sh-card);
+      animation: settle var(--d-3) var(--e-out) both;
+    }
+    .alert-banner::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--bad);
+    }
+    .alert-banner.lv-warning { border-color: rgba(242, 185, 92, 0.26); }
+    .alert-banner.lv-warning::before { background: var(--warn); }
+    .alert-banner.lv-info { border-color: var(--rule-2); }
+    .alert-banner.lv-info::before { background: var(--tx-3); }
+
+    .ab-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ab-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--bad);
+      flex: 0 0 auto;
+      animation: tickPulse 1.9s var(--e-soft) infinite;
+    }
+    .alert-banner.lv-warning .ab-dot { background: var(--warn); }
+    .alert-banner.lv-info .ab-dot { background: var(--tx-3); animation: none; }
+    .ab-title { font-size: var(--fs-md); font-weight: 640; letter-spacing: -0.01em; color: var(--tx); }
+    .ab-time { margin-left: auto; font-size: var(--fs-xs); color: var(--tx-3); font-variant-numeric: tabular-nums; }
+    .ab-body { margin-top: 5px; font-size: var(--fs-sm); color: var(--tx-2); line-height: 1.65; }
+    .ab-foot {
+      margin-top: 9px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: var(--fs-xs);
+      color: var(--tx-3);
+    }
+    .ab-foot a {
+      color: var(--accent);
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 1px 3px;
+      transition: background var(--d-1) var(--e-soft), color var(--d-1) var(--e-soft);
+    }
+    .ab-foot a:hover { background: var(--accent-soft); color: var(--accent-2); }
+    .ab-list {
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px dashed var(--rule);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow: auto;
+      animation: pageShift var(--d-2) var(--e-out) both;
+    }
+    .ab-item {
+      display: flex;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: var(--fs-xs);
+      color: var(--tx-2);
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--row-line);
+    }
+    .ab-item:last-child { border-bottom: none; }
+    .ab-item-time { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+    .ab-item-title { color: var(--tx); font-weight: 560; }
+    .ab-item-body { color: var(--tx-3); flex: 1 1 100%; padding-left: 2px; }
+
+    /* ---------- 14.7 收件箱 / 草稿 / 留痕 ---------- */
+    .inbox-list { display: flex; flex-direction: column; }
+    .inbox-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 11px 2px;
+      border-bottom: 1px solid var(--row-line);
+      transition: background var(--d-1) var(--e-soft);
+    }
+    .inbox-row:last-child { border-bottom: none; }
+    .inbox-row:hover { background: var(--row-hover); }
+    .inbox-row.st-skipped { opacity: 0.55; }
+    .ib-main { flex: 1; min-width: 0; }
+    .ib-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ib-name { font-weight: 620; color: var(--tx); }
+    .ib-time { margin-left: auto; font-size: var(--fs-xs); color: var(--tx-3); }
+    .ib-preview {
+      margin-top: 3px;
+      font-size: var(--fs-sm);
+      color: var(--tx-2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ib-note { margin-top: 3px; font-size: var(--fs-xs); color: var(--tx-3); }
+    .ib-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+
+    .draft-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .draft-last {
+      margin: 6px 0;
+      padding: 8px 11px;
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      border: 1px solid var(--rule);
+      font-size: var(--fs-sm);
+      color: var(--tx-2);
+      line-height: 1.6;
+    }
+    .draft-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .draft-chip {
+      padding: 5px 12px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent-2);
+      font-size: var(--fs-sm);
+      cursor: pointer;
+      transition: background var(--d-1) var(--e-soft), transform var(--d-1) var(--e-soft);
+    }
+    .draft-chip:hover { background: var(--accent-glow-2); transform: translateY(-1px); }
+    .draft-chip:active { transform: translateY(0) scale(0.98); }
+
+    .audit-list { margin-top: 8px; max-height: 320px; overflow: auto; }
+    .audit-row {
+      display: flex;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: var(--fs-xs);
+      color: var(--tx-2);
+      border-bottom: 1px solid var(--row-line);
+      flex-wrap: wrap;
+    }
+    .audit-row:last-child { border-bottom: none; }
+    .au-time { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+    .au-act { font-weight: 620; }
+    .act-auto_sent { color: var(--ok); }
+    .act-manual_sent { color: var(--accent-2); }
+    .act-skip, .act-auto_failed, .act-scan_failed, .act-cycle_skip { color: var(--warn); }
+    .au-peer { color: var(--tx); }
+    .au-text { color: var(--tx-3); flex: 1 1 100%; }
+
+    .boundary-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--tx-2);
+      font-size: var(--fs-sm);
+      line-height: 1.85;
+    }
+
+    /* ---------- 14.9 聊天记录抽屉 ---------- */
+    .chat-list { display: flex; flex-direction: column; gap: 8px; }
+    .chat-row { display: flex; }
+    .chat-row.me { justify-content: flex-end; }
+    .chat-bubble {
+      max-width: 78%;
+      padding: 8px 11px;
+      border-radius: 12px;
+      background: var(--surface-3);
+      border: 1px solid var(--rule);
+    }
+    .chat-row.me .chat-bubble { background: var(--me-bubble-bg); border-color: var(--me-bubble-line); }
+    .chat-text { font-size: var(--fs-sm); line-height: 1.55; color: var(--tx); white-space: pre-wrap; word-break: break-word; }
+    .chat-meta { margin-top: 3px; font-size: var(--fs-xs); color: var(--tx-3); }
+
+    /* ---------- 14.95 组件补齐：单选 / 开关 / 抽屉 ---------- */
+    .el-radio-button__inner {
+      background: var(--surface-2);
+      border-color: var(--rule-2) !important;
+      color: var(--tx-2);
+      font-weight: 520;
+      box-shadow: none !important;
+      transition: background var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft);
+    }
+    .el-radio-button:hover .el-radio-button__inner { color: var(--tx); background: var(--surface-3); }
+    .el-radio-button__original-radio:checked + .el-radio-button__inner {
+      background: var(--accent-deep);
+      border-color: var(--accent-deep) !important;
+      color: #ffffff;
+      font-weight: 580;
+    }
+    .el-radio-button__original-radio:focus-visible + .el-radio-button__inner {
+      outline: 2px solid var(--accent-line);
+      outline-offset: 2px;
+    }
+
+    .el-switch__core {
+      background: var(--switch-off);
+      border-color: var(--switch-off);
+      transition: background var(--d-2) var(--e-soft), border-color var(--d-2) var(--e-soft);
+    }
+    .el-switch.is-checked .el-switch__core { background: var(--accent-deep); border-color: var(--accent-deep); }
+    .el-switch__core .el-switch__action { transition: left var(--d-2) var(--e-spring); }
+    .el-switch__label { color: var(--tx-2); }
+    .el-switch__label.is-active { color: var(--tx); }
+
+    .el-drawer {
+      background: var(--surface-1);
+      border-left: 1px solid var(--rule-2);
+      width: min(440px, 100vw) !important;
+    }
+    .el-drawer__header { margin-bottom: var(--sp-3); color: var(--tx); }
+    .el-drawer__title { color: var(--tx); font-weight: 660; letter-spacing: -0.01em; }
+    .el-drawer__close-btn { color: var(--tx-3); transition: color var(--d-1) var(--e-soft), transform var(--d-1) var(--e-soft); }
+    .el-drawer__close-btn:hover { color: var(--tx); transform: rotate(90deg); }
+
+    .el-dialog__headerbtn .el-dialog__close { color: var(--tx-3); }
+    .el-dialog__headerbtn:hover .el-dialog__close { color: var(--tx); }
+
+    /* ---------- 14.95 两栏布局 / 侧栏 ---------- */
+    .layout-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 296px;
+      gap: var(--sp-4);
+      align-items: start;
+    }
+    .layout-2 > .col { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+    .rail {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      position: sticky;
+      top: 122px;
+    }
+    .rail-card {
+      padding: 15px 17px;
+      border: 1px solid var(--rule);
+      border-radius: var(--r-md);
+      background: var(--surface-1);
+      box-shadow: var(--sh-card);
+    }
+    .rail-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--tx-3);
+      margin-bottom: 9px;
+    }
+    .kv {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 12.5px;
+      border-bottom: 1px dashed var(--rule);
+    }
+    .kv:last-child { border-bottom: 0; padding-bottom: 0; }
+    .kv dt { color: var(--tx-3); flex: none; }
+    .kv dd {
+      margin: 0;
+      color: var(--tx-2);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .quick-links { display: flex; flex-wrap: wrap; gap: 6px; }
+    .quick-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 27px;
+      padding: 0 10px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--rule-2);
+      background: var(--surface-2);
+      color: var(--tx-2);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background var(--d-2) var(--e-soft), color var(--d-2) var(--e-soft),
+                  border-color var(--d-2) var(--e-soft);
+    }
+    .quick-link:hover { background: var(--surface-3); color: var(--tx); border-color: var(--rule-3); }
+
+    /* ---------- 14.96 关于：个人介绍 ---------- */
+    .about-hero {
+      display: grid;
+      grid-template-columns: 308px minmax(0, 1fr);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-lg);
+      background: var(--surface-1);
+      box-shadow: var(--sh-card);
+      overflow: hidden;
+      margin-bottom: var(--sp-4);
+      animation: settle var(--d-4) var(--e-out) both;
+    }
+    .about-aside {
+      padding: 26px 24px;
+      background: var(--surface-2);
+      border-right: 1px solid var(--rule);
+    }
+    .avatar-lg {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, var(--accent-deep), #7b5bd6 56%, #f0a48c);
+      color: #fff;
+      font-size: 27px;
+      font-weight: 700;
+      box-shadow: 0 14px 30px -18px rgba(69, 96, 214, 0.95);
+      margin-bottom: 16px;
+    }
+    .about-name { font-size: 19px; font-weight: 680; letter-spacing: -0.025em; color: var(--tx); }
+    .about-role { margin-top: 4px; font-size: 12px; color: var(--tx-3); line-height: 1.6; }
+    .about-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .about-body { padding: 26px 30px 28px; }
+    .about-body h3 {
+      margin: 0 0 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--tx-3);
+    }
+    .about-body p {
+      margin: 0 0 12px;
+      font-size: 13.5px;
+      line-height: 1.9;
+      color: var(--tx-2);
+      max-width: 70ch;
+    }
+    .about-body p:last-child { margin-bottom: 0; }
+    .principles {
+      list-style: none;
+      margin: 20px 0 0;
+      padding: 18px 0 0;
+      border-top: 1px solid var(--rule);
+      display: grid;
+      gap: 10px;
+    }
+    .principles li {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      gap: 12px;
+      font-size: 12.5px;
+      line-height: 1.75;
+    }
+    .principles .k { color: var(--tx-3); }
+    .principles .v { color: var(--tx-2); }
+
+    .dir-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(228px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .dir {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid var(--rule);
+      border-radius: 9px;
+      background: var(--surface-2);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--tx-2);
+      transition: border-color var(--d-2) var(--e-soft), background var(--d-2) var(--e-soft);
+    }
+    .dir:hover { border-color: var(--accent-line); background: var(--surface-1); }
+    .dir .no {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--accent);
+      padding-top: 3px;
+      flex: none;
+    }
+
+    /* ---------- 14.97 友情链接 ---------- */
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 15px;
+      border: 1px solid var(--rule);
+      border-radius: var(--r-md);
+      background: var(--surface-1);
+      box-shadow: var(--sh-card);
+      transition: border-color var(--d-2) var(--e-soft), transform var(--d-2) var(--e-out),
+                  box-shadow var(--d-2) var(--e-soft);
+    }
+    .link-card:hover {
+      border-color: var(--accent-line);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px -20px rgba(0, 0, 0, 0.9);
+    }
+    .link-logo {
+      width: 34px;
+      height: 34px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .link-main { display: block; min-width: 0; flex: 1; }
+    .link-name { display: block; font-size: 13.5px; font-weight: 600; color: var(--tx); line-height: 1.4; }
+    .link-desc {
+      display: block;
+      margin-top: 2px;
+      font-size: 11.5px;
+      color: var(--tx-3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .link-arrow {
+      margin-left: auto;
+      color: var(--tx-3);
+      flex: none;
+      transition: color var(--d-2) var(--e-soft), transform var(--d-2) var(--e-out);
+    }
+    .link-card:hover .link-arrow { color: var(--accent); transform: translate(2px, -2px); }
+
+    /* ---------- 15. 响应式 ---------- */
+    @media (max-width: 1080px) {
+      .layout-2 { grid-template-columns: minmax(0, 1fr); }
+      .rail { position: static; flex-direction: row; flex-wrap: wrap; }
+      .rail-card { flex: 1 1 260px; }
+    }
+    @media (max-width: 980px) {
+      .links-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      /* 单行连排不再成立时退回独立卡片，避免出现空白格 */
+      .cards {
+        grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+        gap: 10px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .cards .el-card {
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+        box-shadow: var(--sh-card);
+      }
+      .about-hero { grid-template-columns: minmax(0, 1fr); }
+      .about-aside { border-right: none; border-bottom: 1px solid var(--rule); }
+    }
+    @media (max-width: 760px) {
+      .gh-path { display: none; }
+      .gh-status { display: none; }
+      .page-head { align-items: flex-start; }
+      .page-title { font-size: 20px; }
+      .page-side { margin-left: 0; flex-basis: 100%; }
+      .about-body { padding: 22px 20px; }
+      .about-aside { padding: 22px 20px; }
+    }
+    @media (max-width: 720px) {
+      :root { --sp-5: 16px; --sp-6: 20px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card-value { font-size: 19px; }
+      .card-value--date { font-size: 13.5px; }
+      .cards .el-card:nth-child(5) { grid-column: span 2; }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 18px 12px 48px; }
+      .gh-bar { height: 52px; padding: 0 12px; gap: 8px; }
+      .gh-name { font-size: 14px; }
+      .gh-mark { width: 28px; height: 28px; border-radius: 7px; font-size: 14px; }
+      .gh-tabs { padding: 0 12px; }
+      .gh-tab { height: 42px; padding: 0 10px; font-size: 13px; gap: 6px; }
+      .gh-tab svg { width: 14px; height: 14px; }
+      .el-card__body { padding: 15px; }
+      .el-form-item { display: block; }
+      .el-form-item__label {
+        width: auto !important;
+        justify-content: flex-start;
+        margin-bottom: 6px;
+        padding-right: 0;
+      }
+      .el-form-item__content { margin-left: 0 !important; }
+      .log-pre { height: 330px; padding: 38px 12px 12px; font-size: 11.6px; }
+      .el-dialog { width: calc(100vw - 24px) !important; }
+      .el-message-box { width: calc(100vw - 32px) !important; }
+      .el-input-number { width: 102px; }
+      .action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        padding: 9px 0 6px;
+        background: linear-gradient(180deg, var(--abg0), var(--abg1) 38%);
+        backdrop-filter: blur(4px);
+      }
+      .action-bar .el-button { flex: 1 1 auto; height: 37px; }
+      .contacts-box { padding: 9px 11px; max-height: 300px; }
+      .contacts-box .el-checkbox { margin-right: 0 !important; width: 100%; }
+      .contacts-box .el-checkbox__label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 76%;
+      }
+      .ab-time { display: none; }
+      .alert-banner { padding: 12px 13px 12px 16px; }
+      /* 收件箱：手机上按钮换行到下一排 */
+      .inbox-row { flex-direction: column; gap: 8px; }
+      .ib-actions { width: 100%; }
+      .ib-actions .el-button { flex: 1 1 auto; }
+      .ib-time { margin-left: 0; }
+      .principles li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+      .links-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 360px) {
+      .cards { grid-template-columns: 1fr; }
+      .card-value--date { font-size: 15px; }
+    }
+
+    /* ---------- 16. 无障碍：减少动态 ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      .el-progress-bar__inner::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="gh-top">
+      <div class="gh-bar">
+        <a class="gh-brand" href="javascript:void(0)" title="返回概览" @click="tab = 'overview'">
+          <span class="gh-mark" aria-hidden="true">🔥</span>
+          <span class="gh-name">续火花</span>
+          <span class="gh-path">/ console</span>
+        </a>
+        <span class="gh-status" :class="'st-' + (status.running ? 'running' : (status.session_status || 'unknown'))">
+          <span class="gh-dot"></span>{{ headerStatus }}
+        </span>
+        <div class="gh-actions">
+          <button class="gh-back" type="button" @click="goHome"
+                  :class="{ 'has-dirty': isDirty }"
+                  :title="isDirty ? '返回我的主页（有未保存的修改）' : '返回我的主页'"
+                  aria-label="返回我的主页">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 10.6 12 3.2l9 7.4"></path>
+              <path d="M5.6 9.6V20a1 1 0 0 0 1 1H10v-5.6h4V21h3.4a1 1 0 0 0 1-1V9.6"></path>
+            </svg>
+            <span>我的主页</span>
+            <i v-if="isDirty" class="dirty-dot" aria-hidden="true"></i>
+          </button>
+          <button class="gh-icon" type="button" @click="toggleTheme"
+                  :title="theme === 'light' ? '切换到深色模式' : '切换到浅色模式'"
+                  :aria-label="theme === 'light' ? '切换到深色模式' : '切换到浅色模式'">
+            <svg v-if="theme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"></circle>
+              <g class="ray">
+                <line x1="12" y1="2.5" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="21.5"></line>
+                <line x1="2.5" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="21.5" y2="12"></line>
+                <line x1="4.9" y1="4.9" x2="6.7" y2="6.7"></line><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"></line>
+                <line x1="4.9" y1="19.1" x2="6.7" y2="17.3"></line><line x1="17.3" y1="6.7" x2="19.1" y2="4.9"></line>
+              </g>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.6 14.2A8.8 8.8 0 0 1 9.8 3.4a.7.7 0 0 0-.9-.9A10.2 10.2 0 1 0 21.5 15a.7.7 0 0 0-.9-.8z"></path>
+            </svg>
+          </button>
+          <button class="gh-icon" type="button" @click="loadAll" title="刷新数据" aria-label="刷新数据">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="21 4 21 9 16 9"></polyline>
+              <path d="M20.5 14a8.5 8.5 0 1 1-2-8.4L21 9"></path>
+            </svg>
+          </button>
+          <button class="gh-icon" type="button" @click="showTokenDialog" title="访问令牌" aria-label="访问令牌">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="15" r="4"></circle>
+              <line x1="11" y1="12" x2="20" y2="3"></line>
+              <line x1="17" y1="6" x2="20" y2="9"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <nav class="gh-tabs" aria-label="主导航">
+        <button class="gh-tab" :class="{ 'is-active': tab === 'overview' }" type="button" @click="tab = 'overview'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.6"></rect><rect x="14" y="3" width="7" height="7" rx="1.6"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1.6"></rect><rect x="14" y="14" width="7" height="7" rx="1.6"></rect>
+          </svg>
+          概览
+        </button>
+        <button class="gh-tab" :class="{ 'is-active': tab === 'inbox' }" type="button" @click="tab = 'inbox'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+          </svg>
+          收件箱
+          <span v-if="inboxData.unread" class="gh-badge">{{ inboxData.unread }}</span>
+        </button>
+        <button class="gh-tab" :class="{ 'is-active': tab === 'friends' }" type="button" @click="tab = 'friends'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          好友与消息
+        </button>
+        <button class="gh-tab" :class="{ 'is-active': tab === 'settings' }" type="button" @click="tab = 'settings'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+          定时设置
+        </button>
+        <button class="gh-tab" :class="{ 'is-active': tab === 'about' }" type="button" @click="tab = 'about'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          关于
+        </button>
+        <button class="gh-tab" :class="{ 'is-active': tab === 'logs' }" type="button" @click="tab = 'logs'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          日志
+        </button>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="page-head">
+        <h2 class="page-title">{{ pageMeta.title }}</h2>
+        <p class="page-sub">{{ pageMeta.sub }}</p>
+        <div class="page-side">
+          <template v-if="tab === 'overview' && status.next_run">
+            下次执行 · {{ fmt(status.next_run) }}
+          </template>
+          <template v-else-if="tab === 'inbox' && inboxData.scanned_at">
+            上次扫描 · {{ fmt(inboxData.scanned_at) }}
+          </template>
+          <template v-else-if="tab === 'friends' && contacts.length">
+            已读取 {{ contacts.length }} 个会话
+          </template>
+        </div>
+      </div>
+
+      <el-tabs v-model="tab">
+        <el-tab-pane label="概览" name="overview">
+          <div v-if="alerts.length" class="alert-banner" :class="'lv-' + (alerts[0].level || 'info')">
+            <div class="ab-row">
+              <span class="ab-dot"></span>
+              <strong class="ab-title">{{ alerts[0].title }}</strong>
+              <span class="ab-time">{{ fmt(alerts[0].at) }}</span>
+            </div>
+            <div class="ab-body">{{ alerts[0].body }}</div>
+            <div class="ab-foot">
+              <span>共 {{ alerts.length }} 条告警</span>
+              <a @click="showAlerts = !showAlerts">{{ showAlerts ? '收起' : '查看全部' }}</a>
+            </div>
+            <div v-if="showAlerts" class="ab-list">
+              <div v-for="(a, i) in alerts" :key="i" class="ab-item">
+                <span class="ab-item-time">{{ fmt(a.at) }}</span>
+                <span class="ab-item-title">{{ a.title }}</span>
+                <span class="ab-item-body">{{ a.body }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cards">
+            <el-card shadow="never">
+              <div class="card-label">登录态文件</div>
+              <div class="card-value">{{ status.state_file_exists ? '已上传' : '未上传' }}</div>
+              <div v-if="status.state_expire_days !== null && status.state_expire_days !== undefined"
+                   class="card-hint" :class="'explv-' + (status.state_expire_level || 'ok')">
+                剩余约 {{ status.state_expire_days }} 天
+              </div>
+            </el-card>
+            <el-card shadow="never">
+              <div class="card-label">运行状态</div>
+              <div class="card-value">{{ status.running ? '运行中' : '空闲' }}</div>
+            </el-card>
+            <el-card shadow="never">
+              <div class="card-label">下次自动发送</div>
+              <div class="card-value card-value--date">{{ fmt(status.next_run) || '未设置' }}</div>
+            </el-card>
+            <el-card shadow="never">
+              <div class="card-label">待发好友</div>
+              <div class="card-value">{{ friendCount }} 人</div>
+            </el-card>
+            <el-card shadow="never">
+              <div class="card-label">历史执行次数</div>
+              <div class="card-value">{{ status.history_count }}</div>
+            </el-card>
+          </div>
+
+          <div class="layout-2">
+            <div class="col">
+          <el-card shadow="never">
+            <div class="action-bar" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <el-button type="primary" :loading="status.running" @click="triggerRun(false)">立即发送</el-button>
+              <el-button type="danger" plain :disabled="!status.running" :loading="stopping" @click="triggerStop">停止本轮</el-button>
+              <el-button :loading="status.running" @click="triggerRun(true)">干跑测试（不真实发送）</el-button>
+              <el-upload
+                :auto-upload="false"
+                :limit="1"
+                accept=".json"
+                :on-change="onFileChange"
+                :on-remove="onFileRemove"
+                style="display:inline-block;">
+                <el-button>选择 state.json</el-button>
+              </el-upload>
+              <el-button type="success" :disabled="!uploadFile" @click="uploadState">上传登录态</el-button>
+            </div>
+            <div v-if="status.running" style="margin-top:14px;">
+              <el-progress :percentage="progressPct" :stroke-width="8" :show-text="false" status="warning"></el-progress>
+              <div class="muted-hint" style="margin-top:6px;">{{ progressText }}</div>
+            </div>
+            <div class="result-box" v-if="status.last_run">
+              <el-divider content-position="left">上次执行（{{ fmt(status.last_run.at) }}<template v-if="status.last_run.dry_run">，干跑</template>）</el-divider>
+              <div style="margin-bottom:8px;">
+                <span class="stat-ok">成功 {{ status.last_run.ok.length }} 人：</span>
+                <el-tag v-for="n in status.last_run.ok" :key="n" size="small" type="success" style="margin:2px;">{{ n }}</el-tag>
+              </div>
+              <div>
+                <span class="stat-bad">失败 {{ status.last_run.failed.length }} 人：</span>
+                <el-tooltip v-for="f in status.last_run.failed" :key="f.name" :content="f.reason" placement="top">
+                  <el-tag size="small" type="danger" style="margin:2px;">{{ f.name }}</el-tag>
+                </el-tooltip>
+              </div>
+              <el-alert v-if="status.last_run.logged_out" type="error" :closable="false" style="margin-top:8px;"
+                title="登录态已过期：请在电脑上重新运行 extract_cookie.py 并重新上传登录态"></el-alert>
+              <el-alert v-else-if="status.last_run.rate_limited" type="warning" :closable="false" style="margin-top:8px;"
+                title="疑似触发抖音限流：本轮已停止，下次定时任务会自动补发"></el-alert>
+            </div>
+          </el-card>
+            </div>
+
+            <aside class="rail">
+              <div class="rail-card">
+                <div class="rail-title">运行摘要</div>
+                <dl style="margin:0">
+                  <div class="kv"><dt>定时时间</dt><dd>{{ settingsForm.schedule_time || '—' }}</dd></div>
+                  <div class="kv"><dt>发送间隔</dt><dd>{{ settingsForm.send_gap_min }} ~ {{ settingsForm.send_gap_max }} 秒</dd></div>
+                  <div class="kv"><dt>对象来源</dt><dd>{{ settingsForm.friends_mode === 'all_spark' ? '全部有火花' : '按名单' }}</dd></div>
+                  <div class="kv"><dt>对话模式</dt><dd>{{ replyCfg.mode === 'auto' ? '全自动' : (replyCfg.mode === 'semi' ? '半自动' : '已关闭') }}</dd></div>
+                  <div class="kv"><dt>实时监听</dt><dd>{{ inboxData.watch && inboxData.watch.enabled ? '已开启' : '已关闭' }}</dd></div>
+                  <div class="kv"><dt>消息归档</dt><dd>{{ (inboxData.archive && inboxData.archive.messages) || 0 }} 条 / {{ (inboxData.archive && inboxData.archive.peers) || 0 }} 人</dd></div>
+                </dl>
+              </div>
+              <div class="rail-card">
+                <div class="rail-title">快捷入口</div>
+                <div class="quick-links">
+                  <button class="quick-link" type="button" @click="tab = 'inbox'">收件箱</button>
+                  <button class="quick-link" type="button" @click="tab = 'friends'">好友名单</button>
+                  <button class="quick-link" type="button" @click="tab = 'settings'">定时设置</button>
+                  <button class="quick-link" type="button" @click="tab = 'logs'">查看日志</button>
+                  <button class="quick-link" type="button" @click="tab = 'about'">关于</button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="inboxData.unread ? '收件箱 ' + inboxData.unread : '收件箱'" name="inbox">
+          <el-card shadow="never" style="margin-bottom:14px;">
+            <div class="action-bar">
+              <el-button type="primary" :loading="inboxScanning" @click="scanInbox">扫描收件箱</el-button>
+              <el-button :loading="cycleRunning" @click="runCycle('semi')">生成建议（半自动）</el-button>
+              <el-button :loading="cycleRunning" :disabled="replyCfg.mode !== 'auto'" @click="runCycle('auto')">立即自动回复一轮</el-button>
+              <el-tag :type="replyCfg.mode === 'auto' ? 'danger' : (replyCfg.mode === 'semi' ? 'warning' : 'info')">
+                {{ replyCfg.mode === 'auto' ? '全自动' : (replyCfg.mode === 'semi' ? '半自动' : '已关闭') }}
+              </el-tag>
+              <el-switch v-model="watchOn" @change="toggleWatch"
+                         active-text="实时监听" style="margin-right:4px;"></el-switch>
+              <el-button size="small" :loading="watchRunning" @click="runWatchNow">立即检查</el-button>
+              <span class="muted-hint">
+                <template v-if="inboxData.scanned_at">上次扫描 {{ fmt(inboxData.scanned_at) }}</template>
+                <template v-else>还没有扫描过</template>
+                · 有新消息 {{ inboxData.unread_msgs || 0 }} · 待处理 {{ inboxData.unread }} · 待确认 {{ inboxData.pending }} · 已回复 {{ inboxData.sent }}
+              </span>
+            </div>
+            <div v-if="inboxData.watch" class="muted-hint" style="margin-top:6px;">
+              实时监听：<b :style="inboxData.watch.enabled ? 'color:var(--ok)' : ''">{{ watchLabel }}</b>
+              · 每 {{ inboxData.watch.interval_sec }} 秒检查 · 已运行 {{ inboxData.watch.cycles }} 轮
+              · 上轮新消息 <b>{{ inboxData.watch.last_new }}</b> 条
+              <template v-if="inboxData.watch.last_cycle_at"> · {{ fmt(inboxData.watch.last_cycle_at) }}</template>
+              <template v-if="inboxData.archive"> · 已归档 {{ inboxData.archive.messages }} 条 / {{ inboxData.archive.peers }} 人</template>
+              <span v-if="inboxData.watch.last_error" style="color:var(--warn);"> · {{ inboxData.watch.last_error }}</span>
+            </div>
+            <div v-if="inboxData.scope" class="muted-hint" style="margin-top:6px;">
+              推荐范围：最近 {{ inboxData.scope.days }} 天有聊天记录 · 已排除群聊
+              （排除群聊 {{ inboxData.scope.excluded_groups }} 个 / 超期 {{ inboxData.scope.excluded_old }} 个 / 时间未知 {{ inboxData.scope.excluded_unknown }} 个）
+              <template v-if="inboxData.scope.elapsed_sec"> · 本次扫描 {{ inboxData.scope.elapsed_sec }} 秒</template>
+            </div>
+            <el-alert v-if="inboxData.scan_error" :title="inboxData.scan_error" type="warning" :closable="false" show-icon />
+            <el-alert v-if="replyCfg.downgraded" :title="replyCfg.downgraded" type="info" :closable="false" show-icon style="margin-top:8px;" />
+          </el-card>
+
+          <el-card shadow="never" style="margin-bottom:14px;">
+            <div v-if="!inboxData.items.length" class="muted-hint" style="padding:8px 0;">
+              收件箱是空的。点「扫描收件箱」读取一次会话列表（只读，不会把未读标记成已读）。
+              只收录最近 10 天有聊天记录、且不是群聊的会话。
+            </div>
+            <div v-else class="inbox-list">
+              <div v-for="it in inboxData.items" :key="it.peer" class="inbox-row" :class="'st-' + it.status">
+                <div class="ib-main">
+                  <div class="ib-top">
+                    <span class="ib-name" style="cursor:pointer;" title="查看聊天记录"
+                          @click="openChat(it.peer)">{{ it.peer }}</span>
+                    <el-tag v-if="it.unread" size="small" type="danger" effect="plain">{{ it.unread }}</el-tag>
+                    <el-tag size="small" :type="statusTagType(it.status)">{{ statusLabel(it.status) }}</el-tag>
+                    <span class="ib-time">{{ it.time_text }}</span>
+                  </div>
+                  <div class="ib-preview">{{ it.preview || '（无预览文字）' }}</div>
+                  <div v-if="it.note" class="ib-note">已处理：{{ it.note }}</div>
+                </div>
+                <div class="ib-actions">
+                  <el-button size="small" @click="genDraft(it.peer)" :loading="draftingPeer === it.peer">生成建议</el-button>
+                  <el-button size="small" :disabled="it.status === 'skipped'" @click="skipPeer(it.peer)">不用回</el-button>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <el-card v-if="draftInfo" shadow="never" style="margin-bottom:14px;">
+            <div class="draft-head">
+              <strong>{{ draftInfo.peer }}</strong>
+              <el-tag size="small" :type="draftInfo.auto_ok ? 'success' : 'warning'" effect="plain">
+                {{ draftInfo.auto_ok ? '可自动回复' : '需人工判断' }}
+              </el-tag>
+              <span class="muted-hint">
+                判定：{{ draftInfo.reason }} · 来源 {{ draftInfo.source === 'llm' ? 'AI' : '规则库' }} · 抓取置信度 {{ draftInfo.conf }}
+                <template v-if="draftInfo.elapsed_sec"> · 耗时 {{ draftInfo.elapsed_sec }} 秒（读取 {{ draftInfo.read_sec || '-' }} 秒）</template>
+              </span>
+            </div>
+            <div v-if="draftInfo.last_in" class="draft-last">对方最后一句：{{ draftInfo.last_in }}</div>
+            <div v-if="draftInfo.latest_is_text === false" class="muted-hint" style="margin:2px 0 6px;color:var(--warn);">
+              注意：对方最新一条是「{{ draftInfo.last_kind === 'card' ? '分享卡片' : (draftInfo.last_kind === 'image' ? '图片' : (draftInfo.last_kind === 'video' ? '视频' : '表情')) }}」，不是文字。
+              上面的建议基于更早的文字消息，发送前请先确认。
+            </div>
+            <div v-if="draftInfo.hint" class="muted-hint" style="margin:2px 0 6px;">{{ draftInfo.hint }}</div>
+            <div class="draft-chips">
+              <span v-for="(r, i) in draftInfo.replies" :key="i" class="draft-chip" @click="draftText = r">{{ r }}</span>
+            </div>
+            <div class="action-bar" style="margin-top:10px;">
+              <el-input v-model="draftText" placeholder="点上面的候选填入，或自己改" style="max-width:320px;"></el-input>
+              <el-button type="primary" :loading="replying" @click="sendReply">发送</el-button>
+              <el-button @click="draftInfo = null; draftText = ''">收起</el-button>
+            </div>
+          </el-card>
+
+          <el-drawer v-model="chatDrawer" :title="chatPeer + ' · 聊天记录'" size="440px" @closed="closeChat">
+            <div class="action-bar" style="margin-bottom:10px;">
+              <el-button size="small" :loading="chatSyncing" @click="syncChat">同步该会话</el-button>
+              <span class="muted-hint">已归档 {{ chatMsgs.length }} 条 · 每 3 秒自动刷新</span>
+            </div>
+            <div class="chat-list">
+              <div v-for="m in chatMsgs" :key="m.fp" class="chat-row" :class="m.dir === 'out' ? 'me' : 'other'">
+                <div class="chat-bubble">
+                  <div class="chat-text">{{ m.text }}</div>
+                  <div class="chat-meta">
+                    <span v-if="m.kind && m.kind !== 'text'">[{{ m.kind }}] </span>{{ fmt(m.at) }}
+                  </div>
+                </div>
+              </div>
+              <div v-if="!chatMsgs.length" class="muted-hint">还没有归档消息，点下面的「同步该会话」读一次</div>
+            </div>
+          </el-drawer>
+
+          <el-card shadow="never">
+            <div class="draft-head" style="cursor:pointer;" @click="showAudit = !showAudit">
+              <strong>执行留痕</strong>
+              <span class="muted-hint">系统替你做过的每个动作都在这里，共 {{ auditList.length }} 条 · {{ showAudit ? '收起' : '展开' }}</span>
+            </div>
+            <div v-if="showAudit" class="audit-list">
+              <div v-for="(a, i) in auditList" :key="i" class="audit-row">
+                <span class="au-time">{{ fmt(a.at) }}</span>
+                <span class="au-act" :class="'act-' + a.action">{{ a.action }}</span>
+                <span class="au-peer">{{ a.peer || '-' }}</span>
+                <span class="au-text">{{ a.text || a.reason || a.kind || '' }}</span>
+              </div>
+              <div v-if="!auditList.length" class="muted-hint">还没有任何记录</div>
+            </div>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="好友与消息" name="friends">
+          <el-card shadow="never">
+            <div class="action-bar" style="margin-bottom:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <el-button type="primary" :loading="contactsFetching" @click="fetchContacts">获取聊天列表</el-button>
+              <el-checkbox v-model="onlySpark" style="margin-right:4px;">只显示有火花的</el-checkbox>
+              <span class="muted-hint">
+                <template v-if="contacts.length">显示 {{ shownContacts.length }} / 共 {{ contacts.length }} 个会话，最后更新 {{ fmt(contactsAt) }}</template>
+                <template v-else-if="contactsError">获取失败：{{ contactsError }}</template>
+                <template v-else>点击按钮从抖音聊天列表读取好友，勾选即可，免手动输入</template>
+              </span>
+            </div>
+            <div v-if="contacts.length" class="contacts-box">
+              <el-checkbox-group v-model="selectedFriends">
+                <el-checkbox v-for="c in shownContacts" :key="c.name" :label="c.name" style="margin:4px 20px 4px 0;">
+                  {{ c.name }}<el-tag v-if="c.streak" size="small" type="warning" style="margin-left:6px;">🔥 {{ c.streak }}</el-tag><el-tag v-if="c.id_kind" size="small" type="info" style="margin-left:4px;" :title="'该会话在抖音里没有可读昵称，显示的是' + (c.id_kind === 'uid' ? '用户UID' : '抖音号')">{{ c.id_kind === 'uid' ? 'UID' : '抖音号' }}</el-tag>
+                </el-checkbox>
+              </el-checkbox-group>
+            </div>
+            <el-form label-width="110px">
+              <el-form-item label="续火花好友">
+                <el-input v-model="friendsText" type="textarea" :rows="5"
+                  placeholder="已选好友名单（每行一个）；也可手动补充聊天列表里显示的备注 / 昵称 / 抖音号"></el-input>
+              </el-form-item>
+              <el-form-item label="消息模板">
+                <el-input v-model="messagesText" type="textarea" :rows="5"
+                  placeholder="每行一条，每次随机选择一条发送"></el-input>
+                <div class="muted-hint" style="margin-top:4px;">
+                  当前 {{ messageCount }} 条模板（空行会被忽略；换行即视为另一条）
+                </div>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="saveFriends">保存</el-button>
+                <el-button @click="applySelection">把勾选结果写入名单</el-button>
+              </el-form-item>
+            </el-form>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="定时设置" name="settings">
+          <el-card shadow="never">
+            <el-form label-width="150px">
+              <el-form-item label="每天发送时间">
+                <el-input v-model="settingsForm.schedule_time" type="time" style="width:160px;"></el-input>
+              </el-form-item>
+              <el-form-item label="时间抖动窗口（分钟）">
+                <el-input-number v-model="settingsForm.jitter_minutes" :min="0" :max="240"></el-input-number>
+                <span class="muted-hint" style="margin-left:8px;">在设定时间后 0～N 分钟内随机开始，避免每天同一秒发送</span>
+              </el-form-item>
+              <el-form-item label="定时任务间隔（秒）">
+                <el-input-number v-model="settingsForm.send_gap_min" :min="0" :max="300"></el-input-number>
+                <span style="margin:0 6px;">至</span>
+                <el-input-number v-model="settingsForm.send_gap_max" :min="0" :max="300"></el-input-number>
+                <span class="muted-hint" style="margin-left:8px;">每天自动跑时用，建议 45~120，17 人约 15~35 分钟</span>
+              </el-form-item>
+              <el-form-item label="手动发送间隔（秒）">
+                <el-input-number v-model="settingsForm.manual_gap_min" :min="0" :max="300"></el-input-number>
+                <span style="margin:0 6px;">至</span>
+                <el-input-number v-model="settingsForm.manual_gap_max" :min="0" :max="300"></el-input-number>
+                <span class="muted-hint" style="margin-left:8px;">点「立即发送」时用，0 和 0 为秒级连发，仅建议测试小批量</span>
+              </el-form-item>
+              <el-form-item label="每次最多发送人数">
+                <el-input-number v-model="settingsForm.max_friends_per_run" :min="0" :max="200"></el-input-number>
+                <span class="muted-hint" style="margin-left:8px;">0 表示不限制</span>
+              </el-form-item>
+              <el-form-item label="发送对象来源">
+                <el-radio-group v-model="settingsForm.friends_mode">
+                  <el-radio-button label="all_spark">全部有火花的好友</el-radio-button>
+                  <el-radio-button label="list">只按下面的名单</el-radio-button>
+                </el-radio-group>
+                <div class="muted-hint" style="margin-top:4px;">
+                  <b>全部有火花</b>：每次执行前按最新抓取结果自动挑选，名单只作记录，新涨火花的人会自动纳入。<br>
+                  <b>只按名单</b>：严格按「好友与消息」里手写的名单发。
+                </div>
+              </el-form-item>
+              <el-form-item label="执行前刷新列表">
+                <el-switch v-model="settingsForm.refresh_contacts_before_send" />
+                <span class="muted-hint" style="margin-left:8px;">
+                  定时任务开始前先重新抓一次聊天列表（约 60~90 秒），保证火花判断用当天数据；关闭则用上次缓存
+                </span>
+              </el-form-item>
+              <el-form-item label="仅发送给有火花的好友">
+                <el-switch v-model="settingsForm.only_with_spark" />
+                <span class="muted-hint" style="margin-left:8px;">
+                  开启后只对「有火花」的好友发送；无火花、或抓取结果里没有该会话的一律跳过
+                </span>
+              </el-form-item>
+              <el-form-item label="告警 Webhook">
+                <el-input v-model="settingsForm.alert_webhook" placeholder="企业微信/钉钉群机器人地址，留空则只记在网页里" style="max-width:420px;"></el-input>
+                <el-button style="margin-left:8px;" @click="sendTestAlert">发送测试告警</el-button>
+                <div class="muted-hint" style="margin-top:4px;">
+                  只在「登录失效 / 触发限流 / 整轮全失败」时推送，同一原因 24 小时只推一次
+                </div>
+              </el-form-item>
+
+              <el-divider content-position="left">对话系统</el-divider>
+              <el-form-item label="对话模式">
+                <el-radio-group v-model="replyCfg.mode">
+                  <el-radio-button label="off">关闭</el-radio-button>
+                  <el-radio-button label="semi">半自动</el-radio-button>
+                  <el-radio-button label="auto">全自动</el-radio-button>
+                </el-radio-group>
+                <div class="muted-hint" style="margin-top:4px;">
+                  <b>半自动</b>：只生成候选，由你确认后才发。<b>全自动</b>：仅对白名单内、且判定为「寒暄/语气词」的消息自动回，其余一律留草稿。
+                </div>
+              </el-form-item>
+              <el-form-item label="全自动白名单">
+                <el-input v-model="whitelistText" type="textarea" :rows="3"
+                  placeholder="每行一个昵称。留空时全自动会被强制降级为半自动"></el-input>
+              </el-form-item>
+              <el-form-item label="静默时段">
+                <el-input v-model="quietStart" type="time" style="width:130px;"></el-input>
+                <span style="margin:0 6px;">至</span>
+                <el-input v-model="quietEnd" type="time" style="width:130px;"></el-input>
+                <span class="muted-hint" style="margin-left:8px;">这段时间全自动完全不动作</span>
+              </el-form-item>
+              <el-form-item label="自动回复频率">
+                <span class="muted-hint">每小时</span>
+                <el-input-number v-model="replyCfg.max_per_hour" :min="0" :max="30" style="margin:0 4px;"></el-input-number>
+                <span class="muted-hint">条 · 每天</span>
+                <el-input-number v-model="replyCfg.max_per_day" :min="0" :max="200" style="margin:0 4px;"></el-input-number>
+                <span class="muted-hint">条 · 同一人冷却</span>
+                <el-input-number v-model="replyCfg.min_gap_sec" :min="0" :max="86400" style="margin:0 4px;"></el-input-number>
+                <span class="muted-hint">秒</span>
+              </el-form-item>
+              <el-form-item label="回复前等待">
+                <el-input-number v-model="delayMin" :min="0" :max="600"></el-input-number>
+                <span style="margin:0 6px;">至</span>
+                <el-input-number v-model="delayMax" :min="0" :max="600"></el-input-number>
+                <span class="muted-hint" style="margin-left:8px;">秒，随机取值；秒回不像真人</span>
+              </el-form-item>
+              <el-form-item label="AI 生成">
+                <el-switch v-model="replyCfg.llm_enabled" />
+                <span class="muted-hint" style="margin-left:8px;">关闭时使用内置规则库（寒暄/语气词），开启后走 OpenAI 兼容接口</span>
+              </el-form-item>
+              <template v-if="replyCfg.llm_enabled">
+                <el-form-item label="接口地址">
+                  <el-input v-model="replyCfg.llm_base_url" placeholder="https://api.deepseek.com/v1" style="max-width:360px;"></el-input>
+                </el-form-item>
+                <el-form-item label="模型">
+                  <el-input v-model="replyCfg.llm_model" placeholder="deepseek-chat" style="max-width:240px;"></el-input>
+                </el-form-item>
+                <el-form-item label="API Key">
+                  <el-input v-model="replyCfg.llm_api_key" type="password" show-password
+                    :placeholder="replyCfg.llm_api_key_set ? '已设置，留空则不修改' : '粘贴 API Key，保存后不回显'" style="max-width:360px;"></el-input>
+                  <el-button style="margin-left:8px;" :loading="llmTesting" @click="testLlm">测试连接</el-button>
+                  <div v-if="llmTestResult" class="muted-hint" style="margin-top:6px;"
+                       :style="llmTestResult.ok ? 'color:var(--ok)' : 'color:var(--bad)'">
+                    {{ llmTestResult.text }}
+                  </div>
+                </el-form-item>
+                <el-form-item label="说话风格">
+                  <el-input v-model="replyCfg.persona" style="max-width:420px;"></el-input>
+                </el-form-item>
+              </template>
+              <el-form-item>
+                <el-button type="primary" @click="saveReplyCfg">保存对话配置</el-button>
+                <el-button @click="loadReplyCfg">重新读取</el-button>
+              </el-form-item>
+              <el-form-item label="人工介入边界">
+                <ul class="boundary-list">
+                  <li v-for="(b, i) in replyCfg.human_boundary" :key="i">{{ b }}</li>
+                </ul>
+              </el-form-item>
+
+              <el-form-item>
+                <el-button type="primary" @click="saveSettings">保存</el-button>
+              </el-form-item>
+            </el-form>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="关于" name="about">
+          <div class="about-hero">
+            <div class="about-aside">
+              <div class="avatar-lg" aria-hidden="true">桃</div>
+              <div class="about-name">桃子</div>
+              <div class="about-role">个人技术主页 · 独立研究与工程实践</div>
+              <div class="about-tags">
+                <el-tag size="small" type="info">端侧智能体</el-tag>
+                <el-tag size="small" type="info">网络系统</el-tag>
+                <el-tag size="small" type="info">运行时工程</el-tag>
+                <el-tag size="small" type="info">数据基础设施</el-tag>
+                <el-tag size="small" type="info">应用密码学</el-tag>
+              </div>
+              <dl style="margin:18px 0 0;padding-top:14px;border-top:1px solid var(--rule);">
+                <div class="kv"><dt>专业</dt><dd>数据科学与大数据技术</dd></div>
+                <div class="kv"><dt>专注</dt><dd>端侧智能体与系统</dd></div>
+                <div class="kv"><dt>状态</dt><dd>持续整理中</dd></div>
+              </dl>
+            </div>
+            <div class="about-body">
+              <h3>关于我</h3>
+              <p>
+                网名桃子，数据科学与大数据技术专业背景。长期关注端侧人工智能与系统工程的交叉领域，
+                习惯自下而上地理解问题：先在运行时、协议与调度层面把机制拆解清楚，再回到工程实现与效果验证。
+              </p>
+              <p>
+                技术视野覆盖六个相互衔接的方向——智能体系统、私有网络与流量调度、计算节点与指令集仿真、
+                运行时扩展、数据科学基础设施，以及应用密码学与零信任安全。它们共同构成一条从终端到网络、
+                从运行时到数据与信任的完整链路。
+              </p>
+              <ul class="principles">
+                <li><span class="k">研究取向</span><span class="v">系统级实现优先于方案堆叠，重视时延、稳定性与可观测性。</span></li>
+                <li><span class="k">工程准则</span><span class="v">先构建最小可运行原型，再逐段替换薄弱环节，保持每一步可回退。</span></li>
+                <li><span class="k">表达习惯</span><span class="v">结论先行，明确适用边界、前提条件与失效情形。</span></li>
+              </ul>
+
+              <h3 style="margin-top:22px;">技术方向</h3>
+              <div class="dir-grid">
+                <div class="dir"><span class="no">01</span><span>端侧人工智能与自主智能体系统</span></div>
+                <div class="dir"><span class="no">02</span><span>私有网络拓扑、边缘网关与流量调度</span></div>
+                <div class="dir"><span class="no">03</span><span>计算节点部署与指令集仿真技术</span></div>
+                <div class="dir"><span class="no">04</span><span>运行时脚本扩展与应用程序机制</span></div>
+                <div class="dir"><span class="no">05</span><span>数据科学基础设施与工程体系</span></div>
+                <div class="dir"><span class="no">06</span><span>应用密码学与零信任数字资产安全</span></div>
+              </div>
+            </div>
+          </div>
+
+          <el-card shadow="never" style="margin-bottom:14px;">
+            <div class="rail-title" style="margin-bottom:12px;">友情链接</div>
+            <div class="links-grid">
+              <a v-for="l in friendLinks" :key="l.name" class="link-card"
+                 :href="l.url" target="_blank" rel="noopener noreferrer">
+                <span class="link-logo" :style="{ background: l.bg }">{{ l.short }}</span>
+                <span class="link-main">
+                  <span class="link-name">{{ l.name }}</span>
+                  <span class="link-desc">{{ l.desc }}</span>
+                </span>
+                <svg class="link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                  <line x1="7" y1="17" x2="17" y2="7"></line>
+                  <polyline points="9 7 17 7 17 15"></polyline>
+                </svg>
+              </a>
+            </div>
+          </el-card>
+
+          <el-card shadow="never">
+            <div class="rail-title" style="margin-bottom:10px;">本站说明</div>
+            <p class="muted-hint" style="margin:0;">
+              本页面为个人自用的续火花与消息归档工具，仅供本人管理自有账号；不对第三方提供任何服务，
+              不采集他人信息，也不做对外运营。界面与文案仅用于个人技术记录。
+            </p>
+          </el-card>
+        </el-tab-pane>
+
+        <el-tab-pane label="日志" name="logs">
+          <el-card shadow="never">
+            <div class="log-toolbar">
+              <el-button size="small" @click="loadLogs">刷新日志</el-button>
+              <el-checkbox v-model="autoRefresh">自动刷新</el-checkbox>
+            </div>
+            <pre class="log-pre">{{ logs || '暂无日志' }}</pre>
+          </el-card>
+        </el-tab-pane>
+      </el-tabs>
+
+      <footer class="site-foot">
+        <span>续火花 · 个人自用工具</span>
+        <span class="sep">/</span>
+        <span>仅管理本人自有账号</span>
+        <span class="right">© 2026 桃子</span>
+      </footer>
+    </div>
+
+    <el-dialog v-model="tokenDialog" title="访问令牌" width="360px" :close-on-click-modal="false" :show-close="false">
+      <p class="dialog-hint">请输入部署时生成的访问令牌（保存在服务器 .env 文件中）。</p>
+      <el-input v-model="tokenInput" placeholder="访问令牌" show-password @keyup.enter="saveToken"></el-input>
+      <template #footer>
+        <el-button type="primary" @click="saveToken">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+
+  <script src="/static/vendor/vue.global.prod.js"></script>
+  <script src="/static/vendor/element-plus.full.min.js"></script>
+  <script src="/static/vendor/axios.min.js"></script>
+  <script>
+    const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
+
+    const app = createApp({
+      setup() {
+        const tab = ref('overview');
+        /* ---------------- 深浅主题 ---------------- */
+        const theme = ref(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+        function storedTheme() {
+          try { return localStorage.getItem('ds_theme') || ''; } catch (e) { return ''; }
+        }
+        function applyTheme(t) {
+          theme.value = t;
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.colorScheme = t;
+        }
+        function toggleTheme() {
+          const next = theme.value === 'light' ? 'dark' : 'light';
+          try { localStorage.setItem('ds_theme', next); } catch (e) { /* 隐私模式下静默降级 */ }
+          const root = document.documentElement;
+          root.classList.add('theme-fade');
+          applyTheme(next);
+          setTimeout(() => root.classList.remove('theme-fade'), 400);
+        }
+        // 用户未手动选择时，跟随系统深浅色变化
+        if (window.matchMedia) {
+          const mq = window.matchMedia('(prefers-color-scheme: light)');
+          const onSysChange = () => { if (!storedTheme()) applyTheme(mq.matches ? 'light' : 'dark'); };
+          if (mq.addEventListener) mq.addEventListener('change', onSysChange);
+          else if (mq.addListener) mq.addListener(onSysChange);
+        }
+        const token = ref(localStorage.getItem('ds_token') || '');
+        const tokenInput = ref('');
+        const tokenDialog = ref(false);
+        const status = reactive({ state_file_exists: false, session_status: 'unknown', running: false, last_run: null, next_run: null, history_count: 0, auth_required: true });
+
+        /* 导航与页面标题（与顶部标签栏一一对应） */
+        const PAGE_META = {
+          overview: { title: '概览', sub: '登录态、运行状态与最近一次执行结果' },
+          inbox: { title: '收件箱', sub: '自动归档的会话与新消息，按需生成回复建议' },
+          friends: { title: '好友与消息', sub: '好友名单、消息模板与火花状态' },
+          settings: { title: '定时设置', sub: '发送节奏、对话策略与告警通道' },
+          about: { title: '关于', sub: '个人介绍、技术方向与友情链接' },
+          logs: { title: '日志', sub: '服务端运行输出' },
+        };
+        const pageMeta = computed(() => PAGE_META[tab.value] || PAGE_META.overview);
+        const headerStatus = computed(() => {
+          if (status.running) return '运行中';
+          const s = status.session_status;
+          if (s === 'ok') return '登录正常';
+          if (s === 'expired') return '登录态已过期';
+          if (s === 'partial') return '部分发送成功';
+          if (s === 'failed') return '发送失败';
+          return '状态未知';
+        });
+        /* 友情链接：新增/调整直接改这里 */
+        const friendLinks = [
+          { name: '腾讯云', desc: 'cloud.tencent.com', url: 'https://cloud.tencent.com/', short: '云', bg: 'linear-gradient(140deg,#4b8bff,#0052d9)' },
+          { name: '雨云', desc: 'rainyun.com', url: 'https://www.rainyun.com/', short: '雨', bg: 'linear-gradient(140deg,#54c3ff,#1163c9)' },
+          { name: 'GitHub', desc: 'github.com', url: 'https://github.com/', short: 'GH', bg: 'linear-gradient(140deg,#4a5462,#1b1f26)' },
+          { name: 'DeepSeek', desc: 'deepseek.com', url: 'https://www.deepseek.com/', short: 'DS', bg: 'linear-gradient(140deg,#7f9bff,#4d5bf0)' },
+          { name: 'Vue.js', desc: 'cn.vuejs.org', url: 'https://cn.vuejs.org/', short: 'V', bg: 'linear-gradient(140deg,#4ed3a0,#2f9e78)' },
+          { name: 'Element Plus', desc: 'element-plus.org', url: 'https://element-plus.org/zh-CN/', short: 'EP', bg: 'linear-gradient(140deg,#6cb0ff,#3d7fe0)' },
+        ];
+        const config = reactive({ schedule_time: '21:00', jitter_minutes: 30, send_gap_min: 6, send_gap_max: 12, max_friends_per_run: 20, friends: [], messages: [] });
+        const settingsForm = reactive({ schedule_time: '21:00', jitter_minutes: 30, send_gap_min: 6, send_gap_max: 12, manual_gap_min: 0, manual_gap_max: 0, max_friends_per_run: 20, only_with_spark: true, friends_mode: 'list', refresh_contacts_before_send: true, alert_webhook: '' });
+        const friendsText = ref('');
+        const messagesText = ref('');
+        const logs = ref('');
+        const autoRefresh = ref(false);
+        const stopping = ref(false);
+        const watchOn = ref(false);
+        const watchRunning = ref(false);
+        const chatDrawer = ref(false);
+        const chatPeer = ref('');
+        const chatMsgs = ref([]);
+        const chatSyncing = ref(false);
+        const watchLabel = computed(() => {
+          const w = inboxData.watch;
+          if (!w) return '未知';
+          if (!w.enabled) return '已关闭';
+          if (w.busy) return '检查中';
+          return w.running ? '运行中' : '已开启（线程未就绪）';
+        });
+        let chatTimer = null;
+        let inboxTimer = null;
+        const alerts = ref([]);
+        const showAlerts = ref(false);
+        const uploadFile = ref(null);
+        const contacts = ref([]);
+        const contactsAt = ref('');
+        const contactsError = ref('');
+        const contactsFetching = ref(false);
+        const selectedFriends = ref([]);
+        const progressPct = computed(() => {
+          const p = status.progress || {};
+          if (!p.total) return 0;
+          return Math.min(100, Math.round(((p.done || 0) / p.total) * 100));
+        });
+        const progressText = computed(() => {
+          const p = status.progress || {};
+          const done = p.done || 0, total = p.total || 0;
+          if (!total) return '任务启动中，正在打开浏览器…';
+          if (p.phase === 'sending') return '正在发给 ' + (p.current || '') + '（第 ' + (done + 1) + '/' + total + ' 人）';
+          if (done >= total) return '本轮完成：共 ' + total + ' 人';
+          return '已完成 ' + done + '/' + total + '，按设定间隔继续，请勿关闭页面';
+        });
+        // 勾选列表与文本名单必须始终一致，否则"取消勾选后保存"不会生效
+        watch(selectedFriends, (val) => {
+          const t = (val || []).join('\n');
+          if (friendsText.value !== t) friendsText.value = t;
+        });
+        watch(friendsText, (val) => {
+          const arr = String(val || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const cur = (selectedFriends.value || []).join('\n');
+          if (arr.join('\n') !== cur) selectedFriends.value = arr;
+        });
+        const messageCount = computed(() =>
+          String(messagesText.value || '').split('\n').map(s => s.trim()).filter(Boolean).length);
+        const friendCount = computed(() =>
+          (config.friends || []).length);
+        const onlySpark = ref(true);          // 默认只显示"有火花"的会话，过滤陌生人/群聊
+        const shownContacts = computed(() => {
+          const list = contacts.value || [];
+          return onlySpark.value ? list.filter(c => String(c.streak || '').trim()) : list;
+        });
+        let logTimer = null;
+
+        const api = axios.create({ baseURL: '/api', timeout: 900000 });
+        api.interceptors.request.use((cfg) => {
+          if (token.value) cfg.headers['X-Auth-Token'] = token.value;
+          return cfg;
+        });
+        api.interceptors.response.use(
+          (r) => r,
+          (err) => {
+            if (err.response && err.response.status === 401) { tokenDialog.value = true; }
+            return Promise.reject(err);
+          }
+        );
+
+        function showTokenDialog() { tokenInput.value = token.value; tokenDialog.value = true; }
+        function saveToken() {
+          token.value = tokenInput.value.trim();
+          localStorage.setItem('ds_token', token.value);
+          tokenDialog.value = false;
+          loadAll();
+        }
+
+        function fmt(iso) {
+          if (!iso) return '';
+          const d = new Date(iso);
+          return isNaN(d) ? iso : d.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        async function loadStatus() {
+          try {
+            const r = await api.get('/status');
+            Object.assign(status, r.data);
+            if (r.data.auth_required && !token.value) tokenDialog.value = true;
+          } catch (e) { /* 401 handled by interceptor */ }
+        }
+        // ---------- 返回我的主页 ----------
+        // 只比较本页可编辑的字段，避免服务端其它字段变动造成误判
+        const DIRTY_KEYS = ['schedule_time', 'jitter_minutes', 'send_gap_min', 'send_gap_max',
+                            'manual_gap_min', 'manual_gap_max', 'max_friends_per_run',
+                            'only_with_spark', 'friends_mode', 'refresh_contacts_before_send',
+                            'alert_webhook'];
+        const savedSnapshot = ref('');
+        function stateSnapshot() {
+          const st = {};
+          DIRTY_KEYS.forEach((k) => { st[k] = settingsForm[k]; });
+          return JSON.stringify({ s: st, f: friendsText.value, m: messagesText.value });
+        }
+        const isDirty = computed(() => !!savedSnapshot.value && stateSnapshot() !== savedSnapshot.value);
+
+        function leaveHome() {
+          // 在控制台的 iframe 里 → 让父页面回到首页（同源，可直接改 top）
+          try {
+            if (window.top && window.top !== window.self) {
+              window.top.location.href = '/';
+              return;
+            }
+          } catch (e) { /* 跨域时忽略，走下面的兜底 */ }
+          // 独立打开（直连 8000 端口）时，回到同主机的控制台首页
+          location.href = location.protocol + '//' + location.hostname + '/';
+        }
+
+        async function goHome() {
+          if (isDirty.value) {
+            let action = 'save';
+            try {
+              await ElementPlus.ElMessageBox.confirm(
+                '当前有未保存的修改。\n选「保存并返回」会先写入配置再离开；选「直接返回」会丢弃这些修改；点右上角×或按 ESC 留在本页。',
+                '离开前确认',
+                { confirmButtonText: '保存并返回', cancelButtonText: '直接返回',
+                  distinguishCancelAndClose: true, type: 'warning', closeOnClickModal: false });
+            } catch (a) {
+              action = (a === 'cancel') ? 'discard' : 'stay';
+            }
+            if (action === 'stay') return;
+            if (action === 'save') {
+              try {
+                await saveAllQuiet();
+                ElementPlus.ElMessage.success('已保存，正在返回主页…');
+              } catch (e) {
+                ElementPlus.ElMessage.error('保存失败，已取消返回：' + (e.response?.data?.detail || e.message || ''));
+                return;
+              }
+            }
+          }
+          setTimeout(leaveHome, 220);
+        }
+
+        async function saveAllQuiet() {
+          await api.put('/config', buildConfigPayload());
+          await loadConfig();
+          await loadStatus();
+        }
+
+        async function loadConfig() {
+          try {
+            const r = await api.get('/config');
+            Object.assign(config, r.data);
+            Object.assign(settingsForm, r.data);
+            friendsText.value = (r.data.friends || []).join('\n');
+            messagesText.value = (r.data.messages || []).join('\n');
+            savedSnapshot.value = stateSnapshot();   // 记录"已保存"基线
+            selectedFriends.value = (r.data.friends || []).slice();
+          } catch (e) { /* handled */ }
+        }
+        async function loadContacts() {
+          try {
+            const r = await api.get('/contacts');
+            contacts.value = r.data.contacts || [];
+            contactsAt.value = r.data.contacts_at || '';
+            contactsError.value = r.data.contacts_error || '';
+            contactsFetching.value = !!r.data.fetching;
+          } catch (e) { /* handled */ }
+        }
+        async function fetchContacts() {
+          try {
+            await api.post('/contacts/fetch');
+            contactsFetching.value = true;
+            ElementPlus.ElMessage.info('正在读取聊天列表（约 60~90 秒，含火花补齐），请勿重复点击…');
+            for (let i = 0; i < 150; i++) {
+              await new Promise((r) => setTimeout(r, 3000));
+              await loadContacts();
+              if (!contactsFetching.value) break;
+            }
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '获取失败');
+          }
+        }
+        function applySelection() {
+          friendsText.value = selectedFriends.value.join('\n');
+          ElementPlus.ElMessage.success('已把勾选结果写入名单，记得点「保存」');
+        }
+        async function loadLogs() {
+          try {
+            const r = await api.get('/logs');
+            logs.value = r.data.logs;
+          } catch (e) { /* handled */ }
+        }
+        async function loadAll() {
+          await loadStatus();
+          await loadConfig();
+          await loadContacts();
+          await loadAlerts();
+          await loadInbox();
+          await loadReplyCfg();
+          await loadLogs();
+        }
+
+        async function loadAlerts() {
+          try {
+            const r = await api.get('/alerts', { params: { limit: 20 } });
+            alerts.value = r.data.alerts || [];
+          } catch (e) { /* 告警拉不到不影响主流程 */ }
+        }
+
+        async function sendTestAlert() {
+          try {
+            const r = await api.post('/alert/test');
+            if (r.data.webhook_configured) {
+              ElementPlus.ElMessage.success('测试告警已发出，去你的群里/手机上确认一下');
+            } else {
+              ElementPlus.ElMessage.warning('已记录到网页告警列表，但还没填 Webhook 地址，所以推不出去');
+            }
+            await loadAlerts();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '发送失败');
+          }
+        }
+
+        /* ---------------- 对话系统 ---------------- */
+        const inboxData = reactive({ total: 0, unread: 0, pending: 0, sent: 0, skipped: 0,
+          items: [], scanned_at: null, scan_error: null });
+        const inboxScanning = ref(false);
+        const cycleRunning = ref(false);
+        const draftingPeer = ref('');
+        const draftInfo = ref(null);
+        const draftText = ref('');
+        const replying = ref(false);
+        const showAudit = ref(false);
+        const auditList = ref([]);
+        const whitelistText = ref('');
+        const quietStart = ref('23:30');
+        const quietEnd = ref('08:00');
+        const delayMin = ref(20);
+        const delayMax = ref(90);
+        const llmTesting = ref(false);
+        const llmTestResult = ref(null);
+        const replyCfg = reactive({
+          mode: 'off', whitelist: [], quiet_hours: ['23:30', '08:00'],
+          max_per_hour: 3, max_per_day: 10, min_gap_sec: 600, delay_sec: [20, 90],
+          llm_enabled: false, llm_base_url: '', llm_model: '', llm_api_key: '',
+          llm_api_key_set: false, human_boundary: [], downgraded: '',
+        });
+
+        const STATUS_LABEL = { unread: '未读', pending: '待确认', sent: '已回复', skipped: '不用回' };
+        function statusLabel(s) { return STATUS_LABEL[s] || s; }
+        function statusTagType(s) {
+          return s === 'pending' ? 'warning' : (s === 'sent' ? 'success' : (s === 'skipped' ? 'info' : 'danger'));
+        }
+
+        async function toggleWatch(v) {
+          try {
+            const r = await api.post('/watch', { enabled: !!v });
+            if (inboxData.watch) Object.assign(inboxData.watch, r.data.watch);
+            ElementPlus.ElMessage.success(v ? '实时监听已开启，每 ' + r.data.watch.interval_sec + ' 秒检查一次' : '实时监听已关闭');
+          } catch (e) {
+            watchOn.value = !v;
+            ElementPlus.ElMessage.error('切换失败');
+          }
+        }
+
+        async function runWatchNow() {
+          watchRunning.value = true;
+          try {
+            const r = await api.post('/watch/run', {}, { timeout: 180000 });
+            const rep = r.data.report || {};
+            Object.assign(inboxData, { watch: r.data.watch });
+            await loadInbox();
+            ElementPlus.ElMessage.info(
+              rep.skipped ? rep.skipped
+                : `检查完成：候选 ${rep.candidates || 0} 个，打开 ${rep.opened || 0} 个，新消息 ${rep.new_msgs || 0} 条`
+            );
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '检查失败');
+          } finally {
+            watchRunning.value = false;
+          }
+        }
+
+        async function loadChat(peer) {
+          try {
+            const r = await api.get('/chat/' + encodeURIComponent(peer));
+            chatMsgs.value = r.data.messages || [];
+          } catch (e) { /* 忽略 */ }
+        }
+
+        function openChat(peer) {
+          chatPeer.value = peer;
+          chatMsgs.value = [];
+          chatDrawer.value = true;
+          loadChat(peer);
+          if (chatTimer) clearInterval(chatTimer);
+          // 抽屉打开期间每 3 秒拉一次，做到"边聊边看"
+          chatTimer = setInterval(() => {
+            if (chatDrawer.value) loadChat(peer);
+          }, 3000);
+        }
+
+        async function syncChat() {
+          if (!chatPeer.value) return;
+          chatSyncing.value = true;
+          try {
+            const r = await api.post('/chat/' + encodeURIComponent(chatPeer.value) + '/sync', {}, { timeout: 120000 });
+            chatMsgs.value = r.data.messages || [];
+            if (!r.data.ok) ElementPlus.ElMessage.warning(r.data.error || '没读到内容');
+            else ElementPlus.ElMessage.success('已同步 ' + r.data.count + ' 条（新增 ' + r.data.new + '）');
+            await loadInbox();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '同步失败');
+          } finally {
+            chatSyncing.value = false;
+          }
+        }
+
+        function closeChat() {
+          if (chatTimer) { clearInterval(chatTimer); chatTimer = null; }
+        }
+
+        async function loadInbox() {
+          try {
+            const r = await api.get('/inbox');
+            Object.assign(inboxData, r.data);
+            if (r.data.reply) {
+              replyCfg.mode = r.data.reply.mode || 'off';
+              replyCfg.downgraded = r.data.reply.downgraded || '';
+            }
+            if (r.data.watch) watchOn.value = !!r.data.watch.enabled;
+          } catch (e) { /* 忽略，收件箱为空时也要能进页面 */ }
+        }
+
+        async function loadAudit() {
+          try {
+            const r = await api.get('/reply/audit', { params: { limit: 60 } });
+            auditList.value = r.data.audit || [];
+          } catch (e) { /* ignore */ }
+        }
+
+        async function loadReplyCfg() {
+          try {
+            const r = await api.get('/reply/config');
+            Object.assign(replyCfg, r.data);
+            whitelistText.value = (r.data.whitelist || []).join('\n');
+            quietStart.value = (r.data.quiet_hours || ['23:30', '08:00'])[0];
+            quietEnd.value = (r.data.quiet_hours || ['23:30', '08:00'])[1];
+            delayMin.value = (r.data.delay_sec || [20, 90])[0];
+            delayMax.value = (r.data.delay_sec || [20, 90])[1];
+          } catch (e) {
+            ElementPlus.ElMessage.error('读取对话配置失败');
+          }
+        }
+
+        async function saveReplyCfg() {
+          const payload = {
+            mode: replyCfg.mode,
+            whitelist: whitelistText.value.split('\n').map((s) => s.trim()).filter(Boolean),
+            quiet_hours: [quietStart.value, quietEnd.value],
+            max_per_hour: replyCfg.max_per_hour,
+            max_per_day: replyCfg.max_per_day,
+            min_gap_sec: replyCfg.min_gap_sec,
+            delay_sec: [delayMin.value, delayMax.value],
+            llm_enabled: replyCfg.llm_enabled,
+            llm_base_url: replyCfg.llm_base_url,
+            llm_model: replyCfg.llm_model,
+            llm_api_key: replyCfg.llm_api_key || '',
+            persona: replyCfg.persona,
+          };
+          try {
+            const r = await api.put('/reply/config', { config: payload });
+            replyCfg.llm_api_key = '';
+            replyCfg.llm_api_key_set = !!r.data.llm_api_key_set;
+            ElementPlus.ElMessage.success(
+              payload.mode === 'auto' && !payload.whitelist.length
+                ? '已保存，但白名单为空，全自动会被降级为半自动'
+                : '对话配置已保存'
+            );
+            await loadReplyCfg();
+            await loadInbox();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '保存失败');
+          }
+        }
+
+        async function testLlm() {
+          llmTesting.value = true;
+          llmTestResult.value = null;
+          try {
+            const r = await api.post('/reply/test-llm', {
+              llm_base_url: replyCfg.llm_base_url || '',
+              llm_model: replyCfg.llm_model || '',
+              llm_api_key: replyCfg.llm_api_key || '',
+            });
+            const d = r.data;
+            llmTestResult.value = d.ok
+              ? { ok: true, text: '连接正常（' + d.latency_ms + ' ms），示例：' + (d.replies || []).join(' / ') }
+              : { ok: false, text: '失败：' + d.error };
+          } catch (e) {
+            llmTestResult.value = { ok: false, text: '请求失败：' + (e.response?.data?.detail || e.message) };
+          } finally {
+            llmTesting.value = false;
+          }
+        }
+
+        async function scanInbox() {
+          inboxScanning.value = true;
+          try {
+            const r = await api.post('/inbox/scan');
+            Object.assign(inboxData, r.data);
+            if (r.data.error) ElementPlus.ElMessage.warning(r.data.error);
+            else ElementPlus.ElMessage.success('扫描完成，共 ' + (r.data.items || []).length + ' 个会话');
+            await loadAudit();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '扫描失败');
+          } finally {
+            inboxScanning.value = false;
+          }
+        }
+
+        async function genDraft(peer) {
+          draftingPeer.value = peer;
+          try {
+            const r = await api.post('/inbox/draft', { peer });
+            if (r.data.ok) {
+              draftInfo.value = Object.assign({ peer }, r.data.draft_result);
+              draftText.value = (r.data.draft_result.replies || [])[0] || '';
+              Object.assign(inboxData, r.data);
+            } else {
+              // 失败时清空面板：否则会继续显示上一个会话的草稿，很容易误发
+              draftInfo.value = null;
+              draftText.value = '';
+              ElementPlus.ElMessage.warning(r.data.error || '生成失败');
+            }
+            await loadAudit();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '生成失败');
+          } finally {
+            draftingPeer.value = '';
+          }
+        }
+
+        async function sendReply() {
+          if (!draftInfo.value) return;
+          const text = (draftText.value || '').trim();
+          if (!text) { ElementPlus.ElMessage.error('回复内容不能为空'); return; }
+          try {
+            await ElementPlus.ElMessageBox.confirm(
+              '将以 ' + draftInfo.value.peer + ' 的会话发出：「' + text + '」',
+              '确认发送', { confirmButtonText: '发送', cancelButtonText: '取消', type: 'warning' }
+            );
+          } catch (e) { return; }
+          replying.value = true;
+          try {
+            const r = await api.post('/inbox/reply', { peer: draftInfo.value.peer, text });
+            if (r.data.ok) {
+              ElementPlus.ElMessage.success('已发送');
+              draftInfo.value = null;
+              draftText.value = '';
+              await loadInbox();
+              await loadAudit();
+            } else {
+              ElementPlus.ElMessage.error(r.data.reason || '发送失败');
+            }
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '发送失败');
+          } finally {
+            replying.value = false;
+          }
+        }
+
+        async function skipPeer(peer) {
+          try {
+            await api.post('/inbox/status', { peer, status: 'skipped', note: '' });
+            await loadInbox();
+          } catch (e) {
+            ElementPlus.ElMessage.error('标记失败');
+          }
+        }
+
+        async function runCycle(mode) {
+          cycleRunning.value = true;
+          try {
+            const r = await api.post('/reply/run', { mode });
+            const rep = r.data.report || {};
+            if ((rep.sent || []).length) {
+              ElementPlus.ElMessage.success('已自动回复 ' + rep.sent.length + ' 人');
+            } else if (rep.drafted) {
+              ElementPlus.ElMessage.info('已生成 ' + rep.drafted + ' 条草稿，去列表里确认');
+            } else if ((rep.errors || []).length) {
+              ElementPlus.ElMessage.warning(rep.errors[0]);
+            } else {
+              ElementPlus.ElMessage.info('本轮没有需要处理的会话');
+            }
+            if (r.data.inbox) Object.assign(inboxData, r.data.inbox);
+            await loadAudit();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '执行失败');
+          } finally {
+            cycleRunning.value = false;
+          }
+        }
+
+        function buildConfigPayload(extra) {
+          return { config: Object.assign({}, config, settingsForm, {
+            friends: friendsText.value.split('\n').map((s) => s.trim()).filter(Boolean),
+            messages: messagesText.value.split('\n').map((s) => s.trim()).filter(Boolean),
+          }, extra || {}) };
+        }
+        async function saveFriends() {
+          if (!messagesText.value.trim()) {
+            ElementPlus.ElMessage.error('消息模板不能为空：留空会被自动替换成 🔥，请先填写文案');
+            return;
+          }
+          try {
+            await api.put('/config', buildConfigPayload());
+            await loadConfig();
+            await loadStatus();
+            ElementPlus.ElMessage.success('已保存：' + (config.friends || []).length + ' 位好友 / ' + (config.messages || []).length + ' 条文案');
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '保存失败');
+          }
+        }
+        async function saveSettings() {
+          try {
+            await api.put('/config', buildConfigPayload({ schedule_time: settingsForm.schedule_time }));
+            await loadConfig();
+            await loadStatus();
+            ElementPlus.ElMessage.success('定时设置已保存');
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '保存失败');
+          }
+        }
+
+        async function waitForRunFinish(maxSeconds) {
+          const start = Date.now();
+          while (Date.now() - start < maxSeconds * 1000) {
+            await new Promise((r) => setTimeout(r, 5000));
+            await loadStatus();
+            if (!status.running) return;
+          }
+          ElementPlus.ElMessage.warning('等待超时，任务可能仍在后台运行');
+        }
+        async function triggerRun(dry) {
+          if (!friendsText.value.trim()) {
+            ElementPlus.ElMessage.error('好友名单为空：请先勾选好友并保存，再点发送');
+            tab.value = 'friends';
+            return;
+          }
+          // 真实发送不可撤回：手机上尤其容易误触，必须先确认
+          if (!dry) {
+            const names = friendsText.value.split('\n').map((s) => s.trim()).filter(Boolean);
+            const gapText = (Number(settingsForm.manual_gap_min) === 0 && Number(settingsForm.manual_gap_max) === 0)
+              ? '秒级连发'
+              : ('间隔 ' + settingsForm.manual_gap_min + '~' + settingsForm.manual_gap_max + ' 秒');
+            const msgPreview = (messagesText.value.split('\n').map((s) => s.trim()).filter(Boolean)[0] || '🔥');
+            try {
+              await ElementPlus.ElMessageBox.confirm(
+                '即将向 ' + names.length + ' 位好友真实发送消息（' + gapText + '），文案池首条：「' + msgPreview + '」。发出去无法撤回。',
+                '确认真实发送',
+                { confirmButtonText: '确定发送', cancelButtonText: '取消', type: 'warning' }
+              );
+            } catch (e) {
+              return;
+            }
+          }
+          try {
+            const r = await api.post('/run', { dry });
+            if (r.data.started) {
+              ElementPlus.ElMessage.info(dry ? '干跑测试已启动' : '发送任务已启动');
+              await loadStatus();
+              await waitForRunFinish(1200);
+              await loadLogs();
+            }
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '启动失败');
+          }
+        }
+
+        async function triggerStop() {
+          if (!status.running) return;
+          stopping.value = true;
+          try {
+            await api.post('/stop');
+            ElementPlus.ElMessage.warning('已发送停止指令：当前好友处理完即结束本轮');
+            await waitForRunFinish(120);
+            await loadStatus();
+            await loadLogs();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '停止失败');
+          } finally {
+            stopping.value = false;
+          }
+        }
+
+        function onFileChange(file) { uploadFile.value = file.raw || null; }
+        function onFileRemove() { uploadFile.value = null; }
+        async function uploadState() {
+          if (!uploadFile.value) return;
+          try {
+            const fd = new FormData();
+            fd.append('file', uploadFile.value);
+            const r = await api.post('/upload-state', fd);
+            ElementPlus.ElMessage.success('登录态已上传（' + r.data.size + ' 字节）');
+            uploadFile.value = null;
+            await loadStatus();
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.response?.data?.detail || '上传失败');
+          }
+        }
+
+        onMounted(async () => {
+          // 支持 #about 这类深链接，刷新后停留在同一标签
+          const TAB_KEYS = ['overview', 'inbox', 'friends', 'settings', 'about', 'logs'];
+          const syncHash = () => {
+            const h = String(location.hash || '').replace('#', '');
+            if (TAB_KEYS.indexOf(h) >= 0 && h !== tab.value) tab.value = h;
+          };
+          syncHash();
+          window.addEventListener('hashchange', syncHash);
+
+          // 浏览器返回键 / 手机返回手势：有未保存修改时先确认再走
+          history.pushState({ ghGuard: 1 }, '', location.href);
+          window.addEventListener('popstate', () => {
+            if (!isDirty.value) return;                    // 没有改动 → 正常返回
+            history.pushState({ ghGuard: 1 }, '', location.href);  // 挡住这一步
+            goHome();
+          });
+          watch(tab, (v) => {
+            if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+          });
+          await loadAll();
+          logTimer = setInterval(() => {
+            loadStatus();
+            if (autoRefresh.value) loadLogs();
+          }, 20000);
+          // 收件箱轻量自动刷新：不用手动点，新消息会自动冒出来
+          inboxTimer = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            if (tab.value === 'inbox' || tab.value === 'overview') loadInbox();
+          }, 8000);
+        });
+        onUnmounted(() => {
+          if (logTimer) clearInterval(logTimer);
+          if (inboxTimer) clearInterval(inboxTimer);
+          if (chatTimer) clearInterval(chatTimer);
+        });
+
+        return {
+          tab, theme, toggleTheme, pageMeta, headerStatus, friendLinks, goHome, isDirty,
+          status, settingsForm, friendsText, messagesText, logs, autoRefresh, stopping, uploadFile,
+          alerts, showAlerts,
+          inboxData, inboxScanning, cycleRunning, draftingPeer, draftInfo, draftText, replying,
+          showAudit, auditList, replyCfg, whitelistText, quietStart, quietEnd, delayMin, delayMax,
+          watchOn, watchRunning, watchLabel, toggleWatch, runWatchNow,
+          chatDrawer, chatPeer, chatMsgs, chatSyncing, openChat, closeChat, syncChat,
+          llmTesting, llmTestResult, testLlm,
+          statusLabel, statusTagType, loadInbox, loadAudit, loadReplyCfg, saveReplyCfg,
+          scanInbox, genDraft, sendReply, skipPeer, runCycle,
+          contacts, contactsAt, contactsError, contactsFetching, selectedFriends, onlySpark, shownContacts,
+          tokenDialog, tokenInput,
+          fmt, loadAll, loadLogs, loadAlerts, sendTestAlert, loadContacts, fetchContacts, applySelection, progressPct, progressText, messageCount, friendCount,
+          saveFriends, saveSettings, triggerRun, triggerStop,
+          onFileChange, onFileRemove, uploadState, showTokenDialog, saveToken,
+        };
+      },
+    });
+
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>

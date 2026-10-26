@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>续火花 · 多账号控制台</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#141a23; --panel2:#1a222d; --line:rgba(255,255,255,.08);
+    --line2:rgba(255,255,255,.16); --tx:#e9edf5; --tx2:#a9b4c5; --tx3:#7d8a9e;
+    --ember:#ff7a45; --ember2:#ff9f43; --ok:#3ddc97; --warn:#ffc861; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+    background:rgba(10,13,18,.9);backdrop-filter:blur(12px);flex:none}
+  header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.02em;
+    background:linear-gradient(100deg,#fff 10%,var(--ember2) 60%,var(--ember));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--tx3);font-size:12px}
+  .grow{flex:1}
+  .btn{background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--tx2);
+    padding:6px 13px;border-radius:9px;font-size:13px;cursor:pointer;transition:.2s;font-family:inherit}
+  .btn:hover{background:rgba(255,255,255,.1);color:var(--tx);border-color:rgba(255,122,69,.5)}
+  .btn.primary{background:linear-gradient(135deg,var(--ember),var(--ember2));border:none;
+    color:#1a0e07;font-weight:650}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  main{flex:1;display:flex;min-height:0}
+  aside{width:272px;flex:none;border-right:1px solid var(--line);overflow:auto;padding:12px;
+    background:#0c1017}
+  .acc{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer;
+    background:var(--panel);transition:.22s}
+  .acc:hover{border-color:rgba(255,122,69,.4);transform:translateY(-1px)}
+  .acc.active{border-color:var(--ember);box-shadow:0 0 0 3px rgba(255,122,69,.12)}
+  .acc .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .acc .name{font-weight:650;font-size:14px}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .dot.off{background:#5c6779}
+  .dot.run{background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .meta{font-size:11.5px;color:var(--tx3);line-height:1.7}
+  .meta b{color:var(--tx2);font-weight:550}
+  .acc .ops{display:flex;gap:6px;margin-top:9px}
+  .alert{margin-bottom:10px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.6;
+    background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.35);color:#ff9d9d}
+  .hbadge{display:inline-block;padding:0 6px;border-radius:5px;font-size:10.5px;margin-left:6px}
+  .hbadge.ok{background:rgba(61,220,151,.15);color:#7ee2b8}
+  .hbadge.warn{background:rgba(255,200,97,.15);color:#ffd489}
+  .hbadge.bad{background:rgba(255,107,107,.15);color:#ff9d9d}
+  .mini{font-size:11.5px;padding:3px 9px;border-radius:7px;border:1px solid var(--line2);
+    background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit;transition:.2s}
+  .mini:hover{border-color:var(--ember);color:var(--tx)}
+  .mini.warn{border-color:rgba(255,200,97,.4);color:var(--warn)}
+  section{flex:1;min-width:0;display:flex;flex-direction:column}
+  .bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);
+    font-size:12.5px;color:var(--tx3);flex:none}
+  iframe{flex:1;width:100%;border:0;background:#0f131a}
+  .empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--tx3);
+    flex-direction:column;gap:10px}
+  /* 扫码弹窗 */
+  .mask{position:fixed;inset:0;background:rgba(5,7,10,.72);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;z-index:50}
+  .mask.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:22px;
+    width:380px;max-width:calc(100vw - 32px);text-align:center;box-shadow:0 30px 80px -30px #000}
+  .modal h3{margin:0 0 4px;font-size:16px}
+  .modal .hint{color:var(--tx3);font-size:12.5px;margin-bottom:14px}
+  .qrbox{width:260px;height:260px;margin:0 auto 14px;border-radius:12px;background:#fff;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+  .qrbox img{width:100%;height:100%;object-fit:contain;display:block}
+  .qrbox .ph{color:#888;font-size:13px}
+  .state{font-size:13px;margin-bottom:12px;min-height:20px}
+  .state.ok{color:var(--ok)} .state.err{color:var(--bad)} .state.warn{color:var(--warn)}
+  /* toast */
+  #toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-16px);opacity:0;
+    background:rgba(21,26,34,.96);border:1px solid var(--line2);border-radius:10px;padding:9px 16px;
+    font-size:13px;transition:.25s;pointer-events:none;z-index:99}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  @media(max-width:760px){
+    main{flex-direction:column}
+    aside{width:100%;height:190px;border-right:none;border-bottom:1px solid var(--line);
+      display:flex;gap:10px;overflow-x:auto}
+    .acc{min-width:230px;margin-bottom:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔥 续火花 · 多账号控制台</h1>
+  <span class="sub" id="sum">加载中…</span>
+  <div class="grow"></div>
+  <button class="btn" onclick="load()">刷新</button>
+</header>
+
+<main>
+  <aside id="list"></aside>
+  <section>
+    <div class="bar" id="bar">未选择账号</div>
+    <div class="empty" id="empty">
+      <div style="font-size:28px">🔥</div>
+      <div>左侧选择一个账号，或点「扫码登录」添加新账号</div>
+    </div>
+    <iframe id="frame" style="display:none"></iframe>
+  </section>
+</main>
+
+<div class="mask" id="mask">
+  <div class="modal">
+    <h3 id="mTitle">扫码登录</h3>
+    <div class="hint" id="mHint">用手机抖音 App 扫描下方二维码</div>
+    <div class="qrbox" id="qrbox"><span class="ph">正在生成二维码…</span></div>
+    <div class="state" id="mState">初始化中</div>
+    <button class="btn primary" id="mAgent" onclick="agentLogin()"
+            style="margin-right:8px">用本机扫码（会弹窗）</button>
+    <button class="btn" id="mRetry" style="display:none;margin-right:8px"
+            onclick="retryLogin()">重试</button>
+    <button class="btn" id="mCancel" onclick="cancelLogin()">取消</button>
+  </div>
+</div>
+
+<div class="mask" id="authMask">
+  <div class="modal" style="width:340px">
+    <h3>控制台口令</h3>
+    <div class="hint">首次使用需输入控制台口令（部署时生成）</div>
+    <input id="pwdInput" type="password" placeholder="输入口令"
+           style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line2);
+                  background:rgba(255,255,255,.05);color:var(--tx);font-size:14px;font-family:inherit;margin-bottom:10px"
+           onkeydown="if(event.key==='Enter')submitPwd()">
+    <div class="state" id="pwdState"></div>
+    <button class="btn primary" style="width:100%" onclick="submitPwd()">进入控制台</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let accounts = [];
+let current = null;
+let loginAcc = null;
+let qrTimer = null, pollTimer = null;
+
+function toast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.color = color || 'var(--tx)';
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts || {});
+  if (!r.ok) throw new Error((await r.text()).slice(0, 120));
+  return r.json();
+}
+
+function fmt(iso) {
+  if (!iso) return '—';
+  const s = String(iso).replace('T', ' ').replace('+08:00', '');
+  return s.slice(5, 16);
+}
+
+function dotClass(a) {
+  if (a.health === 'offline') return 'off';
+  if (a.health === 'limited') return 'run';
+  if (a.health === 'ok') return 'on';
+  return 'off';
+}
+
+function sessionText(a) {
+  const map = {
+    ok: '登录正常', missing: '未登录 · 需扫码',
+    expired: '登录态已失效', limited: '触发限流', offline: '服务未启动',
+  };
+  return map[a.health] || '状态未知';
+}
+
+function healthBadge(a) {
+  if (a.health === 'ok') return '<span class="hbadge ok">正常</span>';
+  if (a.health === 'limited') return '<span class="hbadge warn">限流</span>';
+  if (a.health === 'expired') return '<span class="hbadge bad">已失效</span>';
+  if (a.health === 'missing') return '<span class="hbadge warn">未登录</span>';
+  return '';
+}
+
+async function checkAuth() {
+  try {
+    const s = await api('/api/session');
+    if (s.authed) { document.getElementById('authMask').classList.remove('show'); return true; }
+    if (!s.password_required) {
+      document.getElementById('pwdState').textContent = '服务端未设置口令，已拒绝访问';
+      document.getElementById('pwdState').className = 'state err';
+    }
+  } catch (e) {}
+  document.getElementById('authMask').classList.add('show');
+  return false;
+}
+
+async function submitPwd() {
+  const v = document.getElementById('pwdInput').value;
+  const st = document.getElementById('pwdState');
+  st.textContent = '验证中…'; st.className = 'state warn';
+  try {
+    const r = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: v })
+    });
+    if (!r.ok) throw new Error((await r.json()).error || '口令不正确');
+    st.textContent = '验证通过'; st.className = 'state ok';
+    document.getElementById('authMask').classList.remove('show');
+    await load();
+  } catch (e) {
+    st.textContent = e.message; st.className = 'state err';
+  }
+}
+
+async function load() {
+  try {
+    const d = await api('/api/accounts');
+    accounts = d.accounts || [];
+    render();
+  } catch (e) {
+    if (String(e.message).includes('未授权')) { checkAuth(); return; }
+    document.getElementById('sum').textContent = '读取失败：' + e.message;
+  }
+}
+
+function render() {
+  const list = document.getElementById('list');
+  const online = accounts.filter(a => a.online).length;
+  const logged = accounts.filter(a => a.state_file).length;
+  document.getElementById('sum').textContent =
+    `${accounts.length} 个账号 · ${online} 个在线 · ${logged} 个已登录`;
+
+  const bad = accounts.filter(a => a.health === 'expired' || a.health === 'missing');
+  const alertHtml = bad.length
+    ? `<div class="alert">⚠ 账号 ${bad.map(a => a.id.toUpperCase()).join('、')} 需要重新登录<br>
+       在电脑上双击「抖音扫码登录.bat」扫码，再点该账号「打开面板」→「概览」上传 state.json</div>`
+    : '';
+
+  list.innerHTML = alertHtml + accounts.map(a => `
+    <div class="acc ${current === a.id ? 'active' : ''}" onclick="pick('${a.id}', event)">
+      <div class="top">
+        <span class="dot ${dotClass(a)}"></span>
+        <span class="name">账号 ${a.id.toUpperCase()}</span>
+        ${healthBadge(a)}
+        <span class="meta" style="margin-left:auto">:${a.port}</span>
+      </div>
+      <div class="meta">
+        登录：<b>${sessionText(a)}</b><br>
+        下次：<b>${fmt(a.next_run)}</b><br>
+        上轮：<b>成功 ${a.last_ok ?? 0} / 失败 ${a.last_failed ?? 0}</b>
+      </div>
+      <div class="ops">
+        <button class="mini" onclick="openPanel('${a.id}', event)">打开面板</button>
+        <button class="mini warn" onclick="startLogin('${a.id}', event)">扫码登录</button>
+      </div>
+    </div>`).join('') || '<div class="meta" style="padding:10px">还没有任何账号</div>';
+}
+
+function pick(id) {
+  current = id;
+  render();
+  openPanel(id);
+}
+
+function openPanel(id, ev) {
+  if (ev) ev.stopPropagation();
+  current = id;
+  render();
+  // 面板前端只要发现「本地没存令牌」就会弹令牌框——即使请求已被代理注入令牌而成功。
+  // 这里预置占位值避免误弹窗；真实令牌由代理在服务端注入，浏览器里不保存。
+  try { localStorage.setItem('ds_token', 'managed-by-console'); } catch (e) {}
+  const f = document.getElementById('frame');
+  f.src = `/p/${id}/?t=${Date.now()}`;
+  f.style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('bar').innerHTML =
+    `正在查看 <b style="color:var(--tx)">账号 ${id.toUpperCase()}</b> · 面板已内嵌，操作与直连一致（令牌由控制台自动注入）`;
+  toast(`已切换到账号 ${id.toUpperCase()}`);
+}
+
+/* ---------------- 扫码登录 ---------------- */
+async function startLogin(id, ev) {
+  if (ev) ev.stopPropagation();
+  loginAcc = id;
+  document.getElementById('mask').classList.add('show');
+  document.getElementById('mTitle').textContent = `扫码登录 · 账号 ${id.toUpperCase()}`;
+  document.getElementById('mHint').innerHTML =
+    '正在自动打开抖音登录页并获取二维码（最多尝试 3 次）<br>' +
+    '<span style="color:#7d8a9e">出码后请用手机抖音 App 扫描，5 分钟内有效</span><br>' +
+    '<span style="color:#ffc861">若下方长时间不出码，点「用本机扫码」由你电脑弹窗完成（需先运行扫码助手）</span>';
+  document.getElementById('mRetry').style.display = 'none';
+  document.getElementById('qrbox').innerHTML = '<span class="ph">正在生成二维码…</span>';
+  setState('启动浏览器中…', 'warn');
+
+  try {
+    await api(`/api/login/start/${id}`, { method: 'POST' });
+  } catch (e) {
+    setState('启动失败：' + e.message, 'err');
+    return;
+  }
+  clearInterval(qrTimer); clearInterval(pollTimer);
+  qrTimer = setInterval(() => loadQr(id), 3000);
+  pollTimer = setInterval(() => pollLogin(id), 2000);
+  setTimeout(() => loadQr(id), 2500);
+}
+
+function loadQr(id) {
+  const box = document.getElementById('qrbox');
+  const img = new Image();
+  img.onload = () => {
+    box.innerHTML = '';
+    box.appendChild(img);
+    setState('等待扫码…', 'warn');
+  };
+  img.onerror = () => { /* 还没生成，保持占位 */ };
+  img.src = `/api/login/qr/${id}?t=${Date.now()}`;
+}
+
+async function pollLogin(id) {
+  try {
+    const d = await api(`/api/login/status/${id}`);
+    if (d.status === 'success') {
+      setState('登录成功，登录态已写入该账号', 'ok');
+      stopTimers();
+      setTimeout(async () => {
+        document.getElementById('mask').classList.remove('show');
+        await load();
+      }, 1200);
+    } else if (d.status === 'blocked') {
+      setState('被抖音安全验证拦截', 'err');
+      document.getElementById('qrbox').innerHTML =
+        '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.7;text-align:left">' +
+        '抖音对这台服务器的出口 IP 要求<b>滑块/短信验证</b>，二维码没能生成。<br><br>' +
+        '可以先点下方「重试」——风控是概率性的，换一次上下文有时就能出码。<br><br>' +
+        '<span style="color:#888">若连续多次都失败，才需要改在本机扫码后上传登录态。</span></div>';
+      document.getElementById('mRetry').style.display = 'inline-block';
+      stopTimers();
+    } else if (d.status === 'timeout') {
+      setState('二维码已超时，请重新点击扫码登录', 'err'); stopTimers();
+    } else if (d.status === 'cancelled') {
+      setState('已取消', ''); stopTimers();
+    } else if (d.status === 'error') {
+      setState('失败：' + (d.error || '未知错误'), 'err'); stopTimers();
+    }
+  } catch (e) { /* 忽略临时错误 */ }
+}
+
+function setState(text, cls) {
+  const el = document.getElementById('mState');
+  el.textContent = text;
+  el.className = 'state ' + (cls || '');
+}
+
+function stopTimers() { clearInterval(qrTimer); clearInterval(pollTimer); }
+
+async function agentLogin() {
+  if (!loginAcc) return;
+  stopTimers();
+  setState('正在请求本机助手…', 'warn');
+  try {
+    const r = await fetch(`/api/agent/request/${loginAcc}`, { method: 'POST' });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || '请求失败');
+    if (!d.agent_online) {
+      setState('本机助手未运行：请先双击「启动扫码助手.bat」，再点本按钮', 'err');
+      return;
+    }
+    setState('本机即将弹出扫码窗口，请扫码…', 'warn');
+    document.getElementById('qrbox').innerHTML =
+      '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.7;text-align:left">' +
+      '已通知你本机的扫码助手，请在弹出的浏览器窗口里用手机扫码。<br><br>' +
+      '扫码成功后会<b>自动回传</b>到服务器，这里会显示“登录成功”。</div>';
+    pollAgent();
+  } catch (e) {
+    setState(e.message, 'err');
+  }
+}
+
+function pollAgent() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const d = await api(`/api/agent/status/${loginAcc}`);
+      if (d.status === 'success') {
+        setState('登录成功，登录态已写入该账号', 'ok');
+        stopTimers();
+        setTimeout(async () => {
+          document.getElementById('mask').classList.remove('show');
+          await load();
+        }, 1200);
+      } else if (d.status === 'failed') {
+        setState('本机扫码未完成：' + (d.error || '超时或取消'), 'err');
+        stopTimers();
+      }
+    } catch (e) { /* 忽略 */ }
+  }, 2500);
+}
+
+function retryLogin() {
+  if (loginAcc) startLogin(loginAcc);
+}
+
+async function cancelLogin() {
+  if (loginAcc) { try { await api(`/api/login/cancel/${loginAcc}`, { method: 'POST' }); } catch (e) {} }
+  stopTimers();
+  document.getElementById('mask').classList.remove('show');
+}
+
+checkAuth().then(ok => { if (ok) load(); });
+setInterval(load, 20000);
+</script>
+</body>
+</html>

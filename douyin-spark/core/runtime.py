@@ -8,6 +8,7 @@ import os
 import threading
 from collections import deque
 
+from . import history
 from .config import DATA_DIR
 
 RUNTIME_PATH = DATA_DIR / "runtime.json"
@@ -85,6 +86,11 @@ def record_run(result: dict) -> None:
             rt["session_status"] = "failed"
 
     _mutate(_apply)
+    # 热力图的按天账本：放在 runtime 锁外写，避免两把锁嵌套
+    try:
+        history.record(result)
+    except Exception:
+        pass
 
 
 def record_contacts(data: dict) -> None:

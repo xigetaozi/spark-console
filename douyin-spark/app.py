@@ -16,8 +16,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from core import (automation, autoreply, browser_pool, chat, inbox, msgstore, notify,
-                   reply_engine, scheduler, slogan, watcher)
+from core import (automation, autoreply, browser_pool, chat, history, inbox, msgstore, notify,
+                  reply_engine, scheduler, slogan, watcher)
 from core.config import DATA_DIR, load_config, save_config
 from core.runtime import (
     load_runtime,
@@ -207,6 +207,14 @@ def _start_fetch_contacts() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     try:
+        # 新账本为空时，把 runtime.json 里留着的近 30 轮历史补进来，
+        # 这样刚上线热力图就有数据，而不是从今天开始一片空白。
+        filled = history.backfill_from_runtime(load_runtime())
+        if filled:
+            logger.info("已从历史执行记录回填 %s 天的发送账本", filled)
+    except Exception as e:
+        logger.warning("发送历史回填失败: %s", e)
+    try:
         scheduler.configure(lambda: _start_run(False))
     except Exception as e:  # pragma: no cover
         logger.warning("调度器启动失败: %s", e)
@@ -342,6 +350,15 @@ def api_status(token: str = Header(default="", alias="X-Auth-Token")) -> dict:
         "alert_count": len(notify.recent(50)),
         "version": "0.1.0",
     }
+
+
+@app.get("/api/heatmap")
+def api_heatmap(token: str = Header(default="", alias="X-Auth-Token"), days: int = 365) -> dict:
+    """火花热力图：一年的每日续火花强度 + 每位好友的连续天数。"""
+    _check_auth(token)
+    data = history.summary(days)
+    data["exists"] = history.path().exists()
+    return data
 
 
 @app.get("/api/alerts")

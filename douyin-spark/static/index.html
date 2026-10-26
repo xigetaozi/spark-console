@@ -723,6 +723,148 @@
     .card-hint.explv-critical,
     .card-hint.explv-expired { color: var(--bad); }
 
+    /* ---------- 4b. 火花热力图 ---------- */
+    /* 色阶：暗→亮代表从「没续上」到「全员续上」。深色主题下靠提亮，
+       浅色主题下靠加深，两边都不用第二套语义 */
+    :root {
+      --hm-0: rgba(255, 255, 255, 0.055);
+      --hm-1: #6b2626;
+      --hm-2: #9c3835;
+      --hm-3: #cf4a45;
+      --hm-4: #f2605a;
+      --hm-edge: rgba(255, 255, 255, 0.09);
+    }
+    html[data-theme="light"] {
+      --hm-0: #ebedf2;
+      --hm-1: #f8c9c9;
+      --hm-2: #f19a9a;
+      --hm-3: #e04b46;
+      --hm-4: #a82f2b;
+      --hm-edge: rgba(15, 23, 42, 0.08);
+    }
+    .hm-card .el-card__body { padding: 16px 18px 18px; }
+    .hm-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 18px; flex-wrap: wrap;
+    }
+    .hm-range {
+      margin-top: 4px; font-size: var(--fs-xs); color: var(--tx-3);
+      font-variant-numeric: tabular-nums;
+    }
+    .hm-stats { display: flex; gap: 22px; }
+    .hm-stat { display: flex; flex-direction: column; gap: 2px; }
+    .hm-num {
+      font-size: 22px; font-weight: 620; line-height: 1.1; color: var(--tx);
+      font-variant-numeric: tabular-nums;
+    }
+    .hm-num small { font-size: 12px; font-weight: 400; color: var(--tx-3); margin-left: 2px; }
+    .hm-cap { font-size: var(--fs-xs); color: var(--tx-3); white-space: nowrap; }
+
+    .hm-warn {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 14px; padding: 8px 12px; border-radius: var(--r-sm);
+      font-size: var(--fs-sm); line-height: 1.5;
+      border: 1px solid var(--rule);
+      background: var(--surface-2);
+      color: var(--tx-2);
+    }
+    .hm-warn::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--tx-3); flex: none;
+    }
+    .hm-warn.lv-danger { border-color: rgba(232, 76, 76, 0.4); color: var(--bad); background: rgba(232, 76, 76, 0.08); }
+    .hm-warn.lv-danger::before { background: var(--bad); }
+    .hm-warn.lv-ok { border-color: var(--ok-soft); color: var(--ok); background: var(--ok-soft); }
+    .hm-warn.lv-ok::before { background: var(--ok); }
+    .hm-warn.lv-pending::before { background: var(--warn); }
+
+    .hm-scroll { overflow-x: auto; margin-top: 16px; padding-bottom: 4px; }
+    .hm-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: repeat(7, 10px);
+      grid-auto-columns: 10px;
+      gap: 2px;
+      width: max-content;
+    }
+    .hm-cell {
+      width: 10px; height: 10px; border-radius: 2px;
+      background: var(--hm-0);
+      transition: outline-color var(--d-1) linear;
+      outline: 1px solid transparent;
+    }
+    .hm-cell.lv1 { background: var(--hm-1); }
+    .hm-cell.lv2 { background: var(--hm-2); }
+    .hm-cell.lv3 { background: var(--hm-3); }
+    .hm-cell.lv4 { background: var(--hm-4); }
+    .hm-cell.is-future { background: transparent; }
+    /* 跑过但全员失败：给个描边，和「压根没跑」区分开 */
+    .hm-cell.is-failed { box-shadow: inset 0 0 0 1px var(--hm-3); }
+    .hm-cell.is-today { outline-color: var(--tx-2); }
+    .hm-cell:hover { outline-color: var(--tx); }
+
+    .hm-legend {
+      display: flex; align-items: center; gap: 4px;
+      margin-top: 12px; font-size: var(--fs-xs); color: var(--tx-3);
+    }
+    .hm-legend i {
+      width: 10px; height: 10px; border-radius: 2px; display: block;
+      box-shadow: inset 0 0 0 1px var(--hm-edge);
+    }
+    .hm-legend .lg-gap { margin-left: auto; }
+
+    .hm-friends { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 14px; }
+    .hm-friends-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px 12px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .hm-friends-head .t { font-size: var(--fs-sm); color: var(--tx-2); }
+    .hm-friends-head .a {
+      font-size: var(--fs-xs); color: var(--accent); cursor: pointer;
+      user-select: none; white-space: nowrap;
+    }
+    .hm-friends-head .a:hover { color: var(--accent-2); }
+    .hm-friend {
+      display: grid; grid-template-columns: 88px minmax(0, 1fr) 64px 54px;
+      align-items: center; gap: 12px; padding: 3px 0;
+    }
+    .hm-fname {
+      font-size: var(--fs-sm); color: var(--tx-2);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .hm-friend.is-risk .hm-fname { color: var(--tx); }
+    /* 右端对齐：窄屏裁剪的是"最旧"的那几天，最新的永远可见 */
+    /* 用 1fr 均分而不是固定格宽：宽屏更舒展、窄屏自动压缩，不用横向滚动 */
+    .hm-bars {
+      display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+      gap: 1px; align-items: center; height: 8px;
+    }
+    .hm-bars i {
+      height: 8px; border-radius: 1px; display: block;
+      background: var(--hm-0);
+    }
+    /* 成功用最暗的一档：这一栏的目的是"哪里断了"，成功只该当背景 */
+    .hm-bars i.b1 { background: var(--hm-1); }
+    .hm-bars i.b2 { background: var(--warn); }
+    .hm-fstreak {
+      font-size: var(--fs-xs); color: var(--tx-2); text-align: right;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .hm-fstreak.is-zero { color: var(--bad); }
+    .hm-ftoday { font-size: var(--fs-xs); color: var(--tx-3); text-align: right; white-space: nowrap; }
+    .hm-ftoday.is-ok { color: var(--ok); }
+    .hm-ftoday.is-failed { color: var(--bad); }
+    .hm-empty { padding: 22px 0; text-align: center; font-size: var(--fs-sm); color: var(--tx-3); }
+
+    @media (max-width: 720px) {
+      .hm-stats { gap: 16px; }
+      .hm-num { font-size: 19px; }
+      .hm-friend { grid-template-columns: 78px minmax(0, 1fr) 52px; }
+      /* 窄屏下 90 天的条带会被压成一根根细线，反而看不出断点，直接让位给数字 */
+      .hm-bars { display: none; }
+      .hm-ftoday { display: none; }
+    }
+
     /* ---------- 5. 常规卡片 ---------- */
     .el-card {
       background: var(--surface-1);
@@ -1939,6 +2081,79 @@
             </el-card>
           </div>
 
+          <el-card shadow="never" class="hm-card" style="margin-bottom:16px;">
+            <div class="hm-head">
+              <div>
+                <div class="card-label">火花热力图</div>
+                <div class="hm-range" v-if="heatmap.ready">
+                  {{ heatmap.start }} — {{ heatmap.end }} · 过去 {{ heatmap.stats.total_days }} 天
+                </div>
+              </div>
+              <div class="hm-stats" v-if="heatmap.ready">
+                <div class="hm-stat">
+                  <span class="hm-num">{{ heatmap.stats.current_streak }}<small>天</small></span>
+                  <span class="hm-cap">当前连续</span>
+                </div>
+                <div class="hm-stat">
+                  <span class="hm-num">{{ heatmap.stats.best_streak }}<small>天</small></span>
+                  <span class="hm-cap">最长连续</span>
+                </div>
+                <div class="hm-stat">
+                  <span class="hm-num">{{ heatmap.stats.active_days }}<small>天</small></span>
+                  <span class="hm-cap">已续天数</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="heatmap.ready" class="hm-warn" :class="'lv-' + heatmap.warning.level">
+              {{ heatmap.warning.text }}
+            </div>
+
+            <div v-if="heatmap.ready && heatmap.cells.length" class="hm-scroll" ref="hmScroll">
+              <div class="hm-grid">
+                <div v-for="c in heatmap.cells" :key="c.d"
+                     class="hm-cell"
+                     :class="[c.future ? 'is-future' : 'lv' + c.lv,
+                              { 'is-today': c.d === heatmap.end,
+                                'is-failed': !c.future && c.tried && c.lv === 0 }]"
+                     :title="cellTip(c)"></div>
+              </div>
+            </div>
+
+            <div class="hm-legend" v-if="heatmap.ready">
+              <span style="margin-right:2px;">没续上</span>
+              <i style="background:var(--hm-0)"></i>
+              <i style="background:var(--hm-1)"></i>
+              <i style="background:var(--hm-2)"></i>
+              <i style="background:var(--hm-3)"></i>
+              <i style="background:var(--hm-4)"></i>
+              <span style="margin-left:2px;">全员续上</span>
+              <span class="lg-gap">每格 = 一天 · 每列 = 一周</span>
+            </div>
+
+            <div class="hm-friends" v-if="heatmap.ready && heatmap.friends.length">
+              <div class="hm-friends-head">
+                <span class="t">好友连续天数 · 近 {{ heatmap.friend_window }} 天，最危险的排在前面</span>
+                <span class="a" v-if="heatmap.friends.length > 10" @click="hmExpand = !hmExpand">
+                  {{ hmExpand ? '只看最危险的 10 人' : '展开全部 ' + heatmap.friends.length + ' 人' }}
+                </span>
+              </div>
+              <div v-for="f in hmFriends" :key="f.name" class="hm-friend" :class="{ 'is-risk': f.streak < 3 }">
+                <span class="hm-fname" :title="f.name">{{ f.name }}</span>
+                <span class="hm-bars"><i v-for="(b, i) in f.bars" :key="i" :class="'b' + b"></i></span>
+                <span class="hm-fstreak" :class="{ 'is-zero': !f.streak }">{{ f.streak }} 天</span>
+                <span class="hm-ftoday" :class="'is-' + f.today">{{ todayLabel(f.today) }}</span>
+              </div>
+            </div>
+
+            <div v-if="!heatmap.ready" class="hm-empty">
+              {{ heatmap.error || '正在读取发送记录…' }}
+            </div>
+            <div v-else-if="!heatmap.stats.active_days" class="hm-empty">
+              还没有开始记账。等第一次真实发送（干跑不算）之后，这里就会亮起来。
+            </div>
+          </el-card>
+
           <div class="layout-2">
             <div class="col">
           <el-card shadow="never">
@@ -2617,6 +2832,46 @@
             if (r.data.auth_required && !token.value) tokenDialog.value = true;
           } catch (e) { /* 401 handled by interceptor */ }
         }
+
+        // ---------------- 火花热力图 ----------------
+        // 后端按天聚合好的数据，前端只负责画格子，不做任何日期推算
+        const heatmap = reactive({
+          ready: false, error: '',
+          start: '', end: '', weeks: 0, friend_window: 90,
+          cells: [], friends: [],
+          stats: { current_streak: 0, best_streak: 0, active_days: 0, total_days: 0,
+                   today_sent: false, today_ok: 0, today_failed: 0, last_send_date: '' },
+          warning: { level: 'pending', text: '' },
+        });
+        const hmExpand = ref(false);
+        const hmScroll = ref(null);
+        const hmFriends = computed(() => (hmExpand.value ? heatmap.friends : heatmap.friends.slice(0, 10)));
+
+        async function loadHeatmap() {
+          try {
+            const r = await api.get('/heatmap', { params: { days: 365 } });
+            Object.assign(heatmap, r.data, { ready: true, error: '' });
+            // 手机上一年放不下一屏，默认停在最右边（今天）——否则看到的是去年的格子
+            await nextTick();
+            if (hmScroll.value) hmScroll.value.scrollLeft = hmScroll.value.scrollWidth;
+          } catch (e) {
+            // 单块数据失败不该影响整页，其余卡片照常显示
+            heatmap.error = '热力图读取失败，稍后自动重试';
+          }
+        }
+
+        function cellTip(c) {
+          if (!c || c.future) return '';
+          if (!c.tried) return c.d + ' · 没有记录';
+          if (!c.lv) return c.d + ' · 尝试过但全部失败（' + c.failed + ' 人）';
+          return c.d + ' · 成功 ' + c.ok + ' 人' + (c.failed ? '，失败 ' + c.failed + ' 人' : '');
+        }
+
+        function todayLabel(v) {
+          if (v === 'ok') return '今日已续';
+          if (v === 'failed') return '今日失败';
+          return '今日未发';
+        }
         // ---------- 返回我的主页 ----------
         // 只比较本页可编辑的字段，避免服务端其它字段变动造成误判
         const DIRTY_KEYS = ['schedule_time', 'jitter_minutes', 'send_gap_min', 'send_gap_max',
@@ -2744,6 +2999,7 @@
           await loadConfig();
           await loadContacts();
           await loadAlerts();
+          await loadHeatmap();
           await loadInbox();
           await loadReplyCfg();
           await loadLogs();
@@ -3216,6 +3472,7 @@
           tokenDialog, tokenInput,
           fmt, loadAll, loadLogs, loadAlerts, sendTestAlert, loadContacts, fetchContacts, applySelection, progressPct, progressText, messageCount, friendCount,
           sloganDate, sloganLoading, sloganPreview, loadSloganPreview, copyText,
+          heatmap, hmExpand, hmFriends, hmScroll, loadHeatmap, cellTip, todayLabel,
           saveFriends, saveSettings, triggerRun, triggerStop,
           onFileChange, onFileRemove, uploadState, showTokenDialog, saveToken,
         };

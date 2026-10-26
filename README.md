@@ -284,4 +284,6 @@ python extract_cookie.py     # 弹出浏览器 → 扫码登录 → 自动写出
 
 ## License
 
-[MIT](LICENSE) —— 随便用，但请保留免责声明。
+[MIT](LICENSE) —— 随便用、随便改，保留版权声明即可。
+
+使用边界与风险见 [DISCLAIMER.md](DISCLAIMER.md)。

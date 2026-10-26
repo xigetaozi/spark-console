@@ -19,27 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-DISCLAIMER / 免责声明
-
-This project is provided for educational purposes only, to demonstrate
-browser automation techniques such as handling asynchronously rendered
-elements and virtualized lists.
-
-Using automated scripts to interact with Douyin (or any other platform) may
-violate that platform's Terms of Service and may result in rate limiting,
-account suspension, or permanent bans. You are solely responsible for any
-consequences arising from your use of this software.
-
-The authors do not condone and expressly prohibit the use of this software
-for spam, harassment, bulk marketing, account farming, or any commercial
-purpose. Use it only on accounts you own, and comply with all applicable
-laws and platform policies.
-
-本项目仅供学习浏览器自动化技术使用。使用自动化脚本操作抖音等平台可能
-违反其用户协议，并可能导致限流、封号等后果，风险由使用者自行承担。
-
-禁止将本项目用于批量营销、骚扰他人、养号卖号等任何牟利或侵害他人
-权益的行为。请仅对自己的账号使用，并遵守平台规则与当地法律法规。

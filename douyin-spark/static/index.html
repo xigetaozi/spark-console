@@ -2158,8 +2158,12 @@
               </el-form-item>
               <el-form-item label="消息模板">
                 <el-input v-model="messagesText" type="textarea" :rows="5"
-                  placeholder="每行一条，每次随机选择一条发送"></el-input>
-                <div class="muted-hint" style="margin-top:4px;">
+                  :placeholder="settingsForm.auto_slogan ? '已开启自动每日文案，这里留空也可以（保存时会自动补一个 🔥 占位）' : '每行一条，每次随机选择一条发送'"></el-input>
+                <div class="muted-hint" style="margin-top:4px;" v-if="settingsForm.auto_slogan">
+                  已开启「自动生成每日文案」：每天按「日期 + 好友」自动生成，每人一条，这里的模板<strong>不参与发送</strong>；
+                  只有关掉「定时设置」里那个开关后，才会重新用这里的文案。
+                </div>
+                <div class="muted-hint" style="margin-top:4px;" v-else>
                   当前 {{ messageCount }} 条模板（空行会被忽略；换行即视为另一条）
                 </div>
               </el-form-item>
@@ -2174,7 +2178,10 @@
               <el-date-picker v-model="sloganDate" type="date" value-format="YYYY-MM-DD"
                 placeholder="选择日期" style="width:170px;"></el-date-picker>
               <el-button :loading="sloganLoading" @click="loadSloganPreview">预览当日文案</el-button>
-              <span class="muted-hint">查看指定日期会给每位好友发送的文案（结果可复现：同一天结果固定）</span>
+              <span class="muted-hint">这里显示的就是那天真正会发出去的文案（同一天结果固定，换个日期就变）</span>
+            </div>
+            <div v-if="!settingsForm.auto_slogan" class="muted-hint" style="margin-bottom:12px;">
+              注意：当前<strong>未开启</strong>「自动生成每日文案」，实际发送仍用上面的消息模板；下面是开启后每天会生成的文案。
             </div>
             <div v-if="sloganPreview">
               <div class="muted-hint" style="margin-bottom:8px;">{{ sloganPreview.date }} · 每位好友的文案</div>
@@ -2249,7 +2256,8 @@
               <el-form-item label="自动生成每日文案">
                 <el-switch v-model="settingsForm.auto_slogan" />
                 <span class="muted-hint" style="margin-left:8px;">
-                  开启后每天按「日期+好友」自动生成轻松友好的随机文案（互不重复），忽略下方手写模板；关闭则用你手写的模板随机挑一条
+                  开启后每天按「日期+好友」自动生成一条轻松友好的文案，每人不同、天天变化，此时「好友与消息」页里的消息模板完全不用填；
+                  关闭则从手写模板里随机挑一条
                 </span>
               </el-form-item>
               <el-form-item label="告警 Webhook">
@@ -3050,8 +3058,9 @@
           }, extra || {}) };
         }
         async function saveFriends() {
-          if (!messagesText.value.trim()) {
-            ElementPlus.ElMessage.error('消息模板不能为空：留空会被自动替换成 🔥，请先填写文案');
+          // 开了自动文案就不强求模板：后端会把空的补成 🔥 占位，不影响发送
+          if (!messagesText.value.trim() && !settingsForm.auto_slogan) {
+            ElementPlus.ElMessage.error('消息模板不能为空（未开启自动每日文案时必须至少填一条）');
             return;
           }
           try {
@@ -3096,9 +3105,13 @@
               ? '秒级连发'
               : ('间隔 ' + settingsForm.manual_gap_min + '~' + settingsForm.manual_gap_max + ' 秒');
             const msgPreview = (messagesText.value.split('\n').map((s) => s.trim()).filter(Boolean)[0] || '🔥');
+            const autoOn = !!settingsForm.auto_slogan;
+            const msgText = autoOn
+              ? '文案：按「日期 + 好友」自动生成（每人一条，可在「好友与消息」页预览）'
+              : ('文案池首条：「' + msgPreview + '」');
             try {
               await ElementPlus.ElMessageBox.confirm(
-                '即将向 ' + names.length + ' 位好友真实发送消息（' + gapText + '），文案池首条：「' + msgPreview + '」。发出去无法撤回。',
+                '即将向 ' + names.length + ' 位好友真实发送消息（' + gapText + '），' + msgText + '。发出去无法撤回。',
                 '确认真实发送',
                 { confirmButtonText: '确定发送', cancelButtonText: '取消', type: 'warning' }
               );

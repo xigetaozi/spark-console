@@ -46,7 +46,8 @@ DEFAULT_CONFIG = {
         "llm_api_key": "",
         "llm_model": "",
     },
-    # True：发送时用内置生成器按「日期+好友」自动生成文案（messages 仍作兜底）
+    # True：发送时用内置生成器按「日期+好友」自动生成文案 —— 此时 messages 完全不参与发送，
+    #       关掉开关后才重新用 messages（二者是二选一，不是拼接、也没有兜底）
     # False：只用手写的 messages 随机挑一条
     "auto_slogan": False,
     "friends": [],              # 好友列表：聊天列表里显示的备注 / 昵称 / 抖音号

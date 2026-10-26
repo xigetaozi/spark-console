@@ -823,8 +823,8 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
                     result["stopped"] = True
                     break
                 if auto_slogan:
-                    # 按「日期 + 好友名」生成稳定且互不重复的文案
-                    msg = slogan.generate(f"{slogan._today_key()}:{name}")
+                    # 与预览共用同一入口，保证「预览看到的」就是「真发出去的」
+                    msg = slogan.for_friend(slogan.today_key(), name)
                 else:
                     msg = random.choice(messages)
                 PROGRESS.update(current=name, phase="sending")

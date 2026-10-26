@@ -3,12 +3,15 @@
 设计目标：
 - 离线可用：不依赖大模型 / 外部 API，纯本地组合生成
 - 有变化、少重复：按「日期 + 好友名」做随机种子，同一天同一好友文案稳定，
-  不同天不同好友结果不同；并用历史去重做兜底
+  不同天不同好友结果不同
 - 风格轻松友好：短句、口语化，适合社交聊天场景
+- **预览即实发**：发送链路和预览都只走 `for_friend()` 一个入口，种子里没有
+  任何额外盐值，所以「预览看到的」就是「真发出去的」
 
-对外只有两个函数：
-    generate(seed)  -> str          生成一条文案（seed 建议传"日期+好友名"）
-    pick_unique(peers, used) -> dict  给一批好友各生成一条互不重复的文案
+对外主要接口：
+    for_friend(day, name) -> str      某天给某位好友的文案（发送/预览共用）
+    generate(seed)        -> str      按任意种子生成一条（自己玩/兜底用）
+    preview_for_date(day, peers) -> dict  按日期预览（逐人 + 示例）
 """
 
 from __future__ import annotations
@@ -70,28 +73,25 @@ def generate(seed: str = "") -> str:
     return rng.choice(_FALLBACKS)
 
 
-def pick_unique(peers: list[str], used: set[str] | None = None) -> dict[str, str]:
-    """给每个好友生成一条文案，尽量互不重复，并避开 used 里已有的。
+def for_friend(day: str, name: str) -> str:
+    """某天给某位好友的文案 —— 发送链路与预览共用的唯一入口。
 
-    返回 {好友名: 文案}。seed 用「当天日期 + 好友名」，保证同一天内稳定、
-    跨天自然变化。
+    种子固定为「日期:好友名」，不带任何额外盐值，保证同一天同一好友结果完全一致，
+    预览看到的就是实际会发出去的那句话。
     """
-    used = set(used or ())
-    day = date.today().isoformat()
-    out: dict[str, str] = {}
-    for p in peers:
-        candidate = None
-        # 最多尝试若干次，找到一条没出现过的
-        for attempt in range(12):
-            c = generate(f"{day}:{p}:{attempt}")
-            if c not in used and c not in out.values():
-                candidate = c
-                break
-        if candidate is None:
-            candidate = generate(f"{day}:{p}")
-        out[p] = candidate
-        used.add(candidate)
-    return out
+    return generate(f"{day or date.today().isoformat()}:{name}")
+
+
+def pick_unique(peers: list[str], used: set[str] | None = None,
+                day: str = "") -> dict[str, str]:
+    """给一批好友各出一条文案，返回 {好友名: 文案}。
+
+    注意：不再做「换种子去重」——去重会给重复的人换用另一个种子，导致预览与实发
+    对不上。不同好友的种子本来就不同，撞车概率很低，撞了就撞了，可接受。
+    `used` 仅为向后兼容保留，不参与计算。
+    """
+    day = day or date.today().isoformat()
+    return {p: for_friend(day, p) for p in peers}
 
 
 def today_slogan() -> str:
@@ -99,9 +99,13 @@ def today_slogan() -> str:
     return generate(date.today().isoformat())
 
 
-def _today_key() -> str:
-    """供发送链路拼 seed 用的日期键（与 generate 内部默认一致）。"""
+def today_key() -> str:
+    """今天的日期键（YYYY-MM-DD），发送链路拼 seed 用。"""
     return date.today().isoformat()
+
+
+# 兼容旧调用（automation 早期用的是这个私有名）
+_today_key = today_key
 
 
 def preview_for_date(day: str, peers: list[str], n_extra: int = 3) -> dict:
@@ -109,13 +113,13 @@ def preview_for_date(day: str, peers: list[str], n_extra: int = 3) -> dict:
 
     返回 {
         "date": day,
-        "per_friend": {好友名: 文案},     # 名单里每人一条（与当天实际发送一致）
+        "per_friend": {好友名: 文案},     # 与当天实际发送逐字一致
         "samples": [文案, ...],           # 额外随机示例 n_extra 条
     }
     即使名单为空，也返回 samples，保证"预览"总能看到东西。
     """
     day = day or date.today().isoformat()
-    per = pick_unique([p for p in peers if str(p).strip()], used=set())
+    per = pick_unique([p for p in peers if str(p).strip()], day=day)
     samples = []
     used = set(per.values())
     for i in range(n_extra):
@@ -131,9 +135,12 @@ if __name__ == "__main__":
     for s in ["", "2026-10-26", "2026-10-27", "a", "b"]:
         print(f"  seed={s!r:<12} -> {generate(s)}")
     print()
-    print("=== 给 8 个好友生成互不重复文案 ===")
+    print("=== 给 8 个好友各生成一条（发送与预览同一入口）===")
     peers = [f"好友{i}" for i in range(1, 9)]
-    got = pick_unique(peers)
+    got = pick_unique(peers, day="2026-10-26")
     for p, s in got.items():
         print(f"  {p}: {s}")
-    print("  去重检查：", "✅ 无重复" if len(set(got.values())) == len(got) else "❌ 有重复")
+    same = all(for_friend("2026-10-26", p) == got[p] for p in peers)
+    print("  预览 == 实发：", "✅ 一致" if same else "❌ 不一致")
+    print("  撞车检查：", "无重复" if len(set(got.values())) == len(got)
+          else f"{len(got) - len(set(got.values()))} 条重复（概率事件，不影响发送）")

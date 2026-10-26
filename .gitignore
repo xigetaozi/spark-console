@@ -28,6 +28,8 @@ _local-backup/
 # 证书与截图（含好友昵称、面板信息）
 console/certs/
 console/shots/
+# 个人主页（含真实姓名/联系方式等，只放服务器，不进仓库）
+console/home.html
 
 # ==================== WorkBuddy 项目数据（含对话记忆与凭据）====================
 .workbuddy/

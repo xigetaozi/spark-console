@@ -40,6 +40,9 @@ BASE = Path(__file__).resolve().parent
 # 方便别人 clone 后指向自己的路径（如 ./data 或 /srv/spark-data）
 ACCOUNTS_ROOT = Path(os.environ.get("ACCOUNTS_ROOT", "/opt/douyin-spark-data"))
 STATIC = BASE / "index.html"
+# 个人主页（可选）：页面里通常带个人信息，不随仓库分发，只在服务器上放一份。
+# 存在时 `/` 展示主页、控制台留在 `/console`；不存在时 `/` 直接就是控制台。
+HOME = BASE / "home.html"
 
 app = FastAPI(title="Spark Console")
 
@@ -224,6 +227,19 @@ threading.Thread(target=_health_loop, daemon=True).start()
 
 @app.get("/")
 def index() -> FileResponse:
+    """站点首页：有 home.html 就展示个人主页，否则直接给控制台。
+
+    这样仓库里（没有 home.html）clone 下来就是「/ 即控制台」，
+    而服务器上放了主页时自动变成「/ 主页 + /console 控制台」。
+    """
+    if HOME.exists():
+        return FileResponse(HOME)
+    return FileResponse(STATIC)
+
+
+@app.get("/console")
+def console() -> FileResponse:
+    """账号控制台。放在 /console，与主页的入口保持一致。"""
     return FileResponse(STATIC)
 
 

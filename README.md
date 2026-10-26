@@ -23,6 +23,14 @@
 
 ---
 
+## 界面预览
+
+| 概览 | 好友与消息 |
+|---|---|
+| ![面板概览](docs/images/panel-overview.png) | ![好友与消息](docs/images/panel-friends.png) |
+
+---
+
 ## 这个项目解决什么问题
 
 抖音的「火花」需要**每天**和好友互发消息才能维持。手动维护十几个人很烦，所以有了这个项目。但做完之后，真正值得记录的是过程中踩到的坑：
@@ -242,7 +250,7 @@ python extract_cookie.py     # 弹出浏览器 → 扫码登录 → 自动写出
 
 ## 来源与致谢
 
-**核心自动化引擎基于开源项目 *Douyin Spark Keeper*（MIT License，见 `douyin-spark/LICENSE`）。**
+**核心自动化引擎基于开源项目 [DouYinSparkFlow](https://github.com/2061360308/DouYinSparkFlow)（MIT License，见 `douyin-spark/LICENSE`）。**
 
 本仓库在其基础上做的二次开发：
 

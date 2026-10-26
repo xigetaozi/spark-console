@@ -51,8 +51,8 @@ and for any risks arising from running it.
 
 ## 关于上游项目
 
-核心自动化引擎基于开源项目 *Douyin Spark Keeper*（MIT License，见
-`douyin-spark/LICENSE`）。本仓库在其基础上做了二次开发，具体改动见根目录
-[README](README.md) 的「来源与致谢」章节。
+核心自动化引擎基于开源项目 [DouYinSparkFlow](https://github.com/2061360308/DouYinSparkFlow)
+（MIT License，见 `douyin-spark/LICENSE`）。本仓库在其基础上做了二次开发，
+具体改动见根目录 [README](README.md) 的「来源与致谢」章节。
 
 若你是上游作者且不希望被引用，请提 Issue，我们会移除相关引用。

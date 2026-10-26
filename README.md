@@ -98,7 +98,7 @@
 ### 前置
 
 - Python 3.11+
-- 一台能长期开机的 Linux 服务器（本地跑也行，但断电就断火花）
+- 一台能**长期开机**的机器：Linux 服务器最省心；**Windows / macOS 也完全能跑**，见下方「关于 Windows」
 - 你有权操作的抖音账号
 
 ### 1. 装依赖
@@ -279,6 +279,39 @@ python extract_cookie.py     # 弹出浏览器 → 扫码登录 → 自动写出
 - 单实例同时只能跑一个发送任务（有互斥锁）
 - 抓取聊天列表需要 1~3 分钟（多轮补齐火花状态，慢是刻意的）
 - 没有数据库，全部用 JSON 文件，适合单机不适合集群
+- Windows 没有现成的服务化方案，重启后需手动启动（可用 NSSM 或任务计划程序解决，见下）
+
+---
+
+## 关于 Windows
+
+**Windows 完全可以运行本项目**——开发与调试就是在一台 Windows 上完成的，所有功能一致。
+
+区别只在「无人值守」这一层：
+
+| 需求 | Linux | Windows |
+|---|---|---|
+| 启动 | `.venv/bin/python app.py` | `.venv\Scripts\python.exe app.py` |
+| 开机自启 | systemd（见 docs/DEPLOY.md） | 任务计划程序 或 [NSSM](https://nssm.cc/) 注册为服务 |
+| 崩溃自动重启 | `Restart=always` | NSSM 内置 |
+| 常开 | 服务器天生如此 | 需要关闭休眠/自动关机，并接受电费 |
+
+**Windows 开机自启（任务计划程序）**：
+
+1. Win+R 输入 `taskschd.msc`
+2. 创建基本任务 → 触发器选「计算机启动时」
+3. 操作填 `D:\path\to\douyin-spark\.venv\Scripts\python.exe`，参数填 `app.py`，起始于填项目目录
+4. 勾选「使用最高权限运行」
+
+或者用 NSSM（更省心）：
+
+```powershell
+nssm install SparkPanel "C:\path\to\douyin-spark\.venv\Scripts\python.exe" "app.py"
+nssm set SparkPanel AppDirectory "C:\path\to\douyin-spark"
+nssm start SparkPanel
+```
+
+**macOS**：`launchd` 或直接开一个终端窗口挂着。
 
 ---
 

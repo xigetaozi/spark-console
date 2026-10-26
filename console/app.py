@@ -43,9 +43,26 @@ STATIC = BASE / "index.html"
 
 app = FastAPI(title="Spark Console")
 
+
+@app.middleware("http")
+async def visitor_write_block(request: Request, call_next):
+    """访客会话禁止控制台自身的写操作（扫码、代扫码请求、登录流程等）。
+
+    GET 全放行；/api/auth 是登录本身、必须放行（此时还没有会话角色）。
+    面板侧的写保护由面板自己的中间件 + 按角色注入的令牌双重兜底。
+    """
+    if _role(request) == "visitor" and request.method.upper() != "GET" \
+            and request.url.path != "/api/auth":
+        return JSONResponse(status_code=403,
+                            content={"detail": "访客只有只读权限，无法执行该操作"})
+    return await call_next(request)
+
 # 控制台口令：不设置则拒绝启动（避免公网裸奔）
 CONSOLE_PASSWORD = os.environ.get("CONSOLE_PASSWORD", "").strip()
-SESSIONS: set[str] = set()
+# 访客口令（可选）：持有者登录控制台后为只读模式（看得到账号列表与面板，改不了任何东西）
+VISITOR_PASSWORD = os.environ.get("VISITOR_PASSWORD", "").strip()
+# sid -> 角色（"admin" / "visitor"）；访客会话的代理请求只注入访客令牌
+SESSIONS: dict[str, str] = {}
 
 # 可选通知 webhook（企业微信/钉钉/飞书/通用），不配置则只在控制台内提示
 NOTIFY_WEBHOOK = os.environ.get("NOTIFY_WEBHOOK", "").strip()
@@ -215,25 +232,36 @@ def _authed(request: Request) -> bool:
     return bool(sid and sid in SESSIONS)
 
 
+def _role(request: Request) -> str:
+    """当前会话角色：admin / visitor / 空（未登录）。"""
+    sid = request.cookies.get("sc") or ""
+    return SESSIONS.get(sid, "")
+
+
 @app.post("/api/auth")
 def api_auth(request: Request, payload: dict) -> Response:
-    if not CONSOLE_PASSWORD:
+    if not CONSOLE_PASSWORD and not VISITOR_PASSWORD:
         return JSONResponse({"ok": False, "error": "服务端未设置控制台口令，已拒绝访问"}, 503)
-    if str(payload.get("password", "")) != CONSOLE_PASSWORD:
+    pwd = str(payload.get("password", ""))
+    if pwd == CONSOLE_PASSWORD and CONSOLE_PASSWORD:
+        role = "admin"
+    elif pwd == VISITOR_PASSWORD and VISITOR_PASSWORD:
+        role = "visitor"
+    else:
         audit("auth_fail", "-", request.client.host if request.client else "")
         time.sleep(0.6)  # 轻微延时，抑制暴力尝试
         return JSONResponse({"ok": False, "error": "口令不正确"}, 401)
     sid = secrets.token_urlsafe(24)
-    SESSIONS.add(sid)
-    audit("auth_ok", "-", request.client.host if request.client else "")
-    resp = JSONResponse({"ok": True})
+    SESSIONS[sid] = role
+    audit("auth_ok", role, request.client.host if request.client else "")
+    resp = JSONResponse({"ok": True, "role": role})
     resp.set_cookie("sc", sid, httponly=True, samesite="lax", max_age=7 * 24 * 3600)
     return resp
 
 
 @app.get("/api/session")
 def api_session(request: Request) -> dict:
-    return {"authed": _authed(request), "password_required": bool(CONSOLE_PASSWORD)}
+    return {"authed": _authed(request), "role": _role(request), "password_required": bool(CONSOLE_PASSWORD or VISITOR_PASSWORD)}
 
 
 @app.get("/api/accounts")
@@ -467,9 +495,17 @@ async def proxy(acc: str, path: str, request: Request) -> Response:
     hdrs = {k: v for k, v in request.headers.items()}
     # 关键：接口请求由代理侧注入正确的访问令牌，浏览器里不保存任何令牌
     if path.startswith("api/"):
-        token = env.get("AUTH_TOKEN", "")
+        # 关键安全点：访客会话绝不注入管理员令牌。
+        # 访客 → 注入该账号的 VISITOR_TOKEN（面板会拒绝其写操作）；
+        #       若该账号未配置 VISITOR_TOKEN，则不注入任何令牌（面板直接 401），
+        #       宁可访客看不了，也不能让他借管理员权限写数据。
         hdrs = {k: v for k, v in hdrs.items() if k.lower() != "x-auth-token"}
-        hdrs["X-Auth-Token"] = token
+        if _role(request) == "visitor":
+            token = env.get("VISITOR_TOKEN", "")
+            if token:
+                hdrs["X-Auth-Token"] = token
+        else:
+            hdrs["X-Auth-Token"] = env.get("AUTH_TOKEN", "")
     st, rh, rb = await asyncio.to_thread(http_call, request.method, url, hdrs, body, 120)
     if st == 0:
         return Response(f"账号 {acc} 的服务无响应（端口 {port} 未监听）", status_code=502,

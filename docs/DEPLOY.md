@@ -196,6 +196,7 @@ sudo certbot --nginx -d <你的域名>
 | 扫码一直弹滑块 | 服务器 IP 被风控 | 改用本机扫码导出 state.json |
 | Playwright 报找不到浏览器 | 缓存路径不匹配 | 检查 `PLAYWRIGHT_BROWSERS_PATH` |
 | 定时没执行 | 抖动配置过大 / 名单为空 | 查日志「随机延迟 N 秒」「未配置任何好友」 |
+| 改了 .py 文件但行为没变化 | Python 进程启动时加载模块，改文件后内存里仍是旧代码 | `systemctl restart` 重启对应实例（改前端 HTML/JS 除外，刷新即可） |
 | 域名访问被拦截 | 未备案 | 走 ICP 备案流程 |
 
 **看日志**：

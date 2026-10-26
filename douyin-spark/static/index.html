@@ -727,7 +727,7 @@
     /* 色阶：暗→亮代表从「没续上」到「全员续上」。深色主题下靠提亮，
        浅色主题下靠加深，两边都不用第二套语义 */
     :root {
-      --hm-0: rgba(255, 255, 255, 0.055);
+      --hm-0: rgba(255, 255, 255, 0.04);
       --hm-1: #6b2626;
       --hm-2: #9c3835;
       --hm-3: #cf4a45;
@@ -735,7 +735,7 @@
       --hm-edge: rgba(255, 255, 255, 0.09);
     }
     html[data-theme="light"] {
-      --hm-0: #ebedf2;
+      --hm-0: #edf0f5;
       --hm-1: #f8c9c9;
       --hm-2: #f19a9a;
       --hm-3: #e04b46;
@@ -751,6 +751,7 @@
       margin-top: 4px; font-size: var(--fs-xs); color: var(--tx-3);
       font-variant-numeric: tabular-nums;
     }
+    .hm-since { color: var(--tx-3); opacity: 0.8; }
     .hm-stats { display: flex; gap: 22px; }
     .hm-stat { display: flex; flex-direction: column; gap: 2px; }
     .hm-num {
@@ -2087,6 +2088,9 @@
                 <div class="card-label">火花热力图</div>
                 <div class="hm-range" v-if="heatmap.ready">
                   {{ heatmap.start }} — {{ heatmap.end }} · 过去 {{ heatmap.stats.total_days }} 天
+                  <template v-if="firstRecordDate() && firstRecordDate() > heatmap.start">
+                    <span class="hm-since">· 记录自 {{ firstRecordDate().slice(5) }} 起，此前为空白</span>
+                  </template>
                 </div>
               </div>
               <div class="hm-stats" v-if="heatmap.ready">
@@ -2872,6 +2876,12 @@
           if (v === 'failed') return '今日失败';
           return '今日未发';
         }
+
+        // 账本是从某天才开始记的，早于那天的空白不是"断签"，标出来免得误会
+        function firstRecordDate() {
+          const hit = (heatmap.cells || []).find((c) => c.tried);
+          return hit ? hit.d : '';
+        }
         // ---------- 返回我的主页 ----------
         // 只比较本页可编辑的字段，避免服务端其它字段变动造成误判
         const DIRTY_KEYS = ['schedule_time', 'jitter_minutes', 'send_gap_min', 'send_gap_max',
@@ -3473,6 +3483,7 @@
           fmt, loadAll, loadLogs, loadAlerts, sendTestAlert, loadContacts, fetchContacts, applySelection, progressPct, progressText, messageCount, friendCount,
           sloganDate, sloganLoading, sloganPreview, loadSloganPreview, copyText,
           heatmap, hmExpand, hmFriends, hmScroll, loadHeatmap, cellTip, todayLabel,
+          firstRecordDate,
           saveFriends, saveSettings, triggerRun, triggerStop,
           onFileChange, onFileRemove, uploadState, showTokenDialog, saveToken,
         };

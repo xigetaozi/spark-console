@@ -505,6 +505,11 @@ def fetch_chat_contacts() -> dict:
 
                         out.push({
                             name: display,
+                            // 群聊标记：会话类型图标存在，或名字里明确带"群"。
+                            // 注意：这个字段仅供排查参考，真正判定见 _is_group_contact()，
+                            // 实测 commonConversationIcon 会把真人（91786913 等）也标上。
+                            is_group: !!(itemBox && itemBox.querySelector('[class*="commonConversationIcon"]'))
+                                      || /群/.test(display),
                             streak: streakText,
                             raw: raw,
                             is_id: numeric,
@@ -632,6 +637,20 @@ def fetch_chat_contacts() -> dict:
 PROGRESS = {"total": 0, "done": 0, "current": "", "phase": "idle", "started_at": ""}
 
 
+def _is_group_contact(c: dict) -> bool:
+    """这个会话是不是群聊——只看名字里有没有「群」字。
+
+    踩过两次坑，所以规则收得很紧：
+    - 不能用「预览带 昵称： 前缀」：账号 a 里 91786913 这个真人，预览是
+      「AD：分享[评论]」，会被判成群而漏发。
+    - 不能用 DOM 的 commonConversationIcon 图标：实测把 91786913、尼尼孩孩、
+      18 这几个真人全标成了群（那个 class 不止是群图标），同样会漏发。
+    名字里带「群」是目前唯一零误伤的信号；真漏判的代价是往群里发一条消息，
+    误判的代价是好友断火花，所以宁可漏判。
+    """
+    return "群" in str(c.get("name") or "")
+
+
 def has_spark(streak) -> bool:
     """判断火花状态是否有效。
 
@@ -738,7 +757,8 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
             targets = [n for n in only_names if n in cached_names]
         else:
             targets = [str(c.get("name")) for c in contacts
-                       if c.get("name") and has_spark(c.get("streak"))]
+                       if c.get("name") and has_spark(c.get("streak"))
+                       and not _is_group_contact(c)]
         logger.info("全部火花模式：%s 个会话中筛出 %s 个有火花", len(contacts), len(targets))
         if not targets:
             logger.warning("全部火花模式：没有任何会话带火花，本轮不发")
@@ -764,6 +784,13 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
                                          "reason": f"名单里的 {len(dropped)} 位好友都没有火花状态，本轮跳过（0 条发出）"})
                 return result
             logger.info("仅火花模式：%s 人有火花待发，%s 人跳过", len(targets), len(dropped))
+            # 群聊一律不发：抖音群也带火花徽标，不排除就会往群里发"续火花"
+            _groups = {str(c.get("name") or "") for c in contacts if _is_group_contact(c)}
+            if _groups:
+                _kept = [t for t in targets if t not in _groups]
+                if len(_kept) != len(targets):
+                    logger.info("跳过 %s 个群聊会话", len(targets) - len(_kept))
+                targets = _kept
 
     # 截断放在过滤之后，避免"前 N 个里一半没火花"把人挤掉
     if max_n > 0:

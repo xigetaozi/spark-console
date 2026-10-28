@@ -10,6 +10,7 @@ logs/
 .env
 .env.local
 local-key.txt
+server.txt
 *.key
 *.pem
 *.p12
@@ -56,3 +57,6 @@ cancelled-tasks.json
 
 # 本地演示实例的数据（跑 demo 时自动生成）
 douyin-spark/demo-data/
+
+# 控制台审计日志（含 IP 与操作记录）
+console/audit.jsonl

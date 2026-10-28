@@ -115,6 +115,7 @@
     <div class="hint" id="mHint">用手机抖音 App 扫描下方二维码</div>
     <div class="qrbox" id="qrbox"><span class="ph">正在生成二维码…</span></div>
     <div class="state" id="mState">初始化中</div>
+    <div class="hint" id="mAgentHint" style="margin-top:6px;font-size:12px"></div>
     <button class="btn primary" id="mAgent" onclick="agentLogin()"
             style="margin-right:8px">用本机扫码（会弹窗）</button>
     <button class="btn" id="mRetry" style="display:none;margin-right:8px"
@@ -241,7 +242,8 @@ function render() {
   const bad = accounts.filter(a => a.health === 'expired' || a.health === 'missing');
   const alertHtml = bad.length
     ? `<div class="alert">⚠ 账号 ${bad.map(a => a.id.toUpperCase()).join('、')} 需要重新登录<br>
-       在电脑上双击「抖音扫码登录.bat」扫码，再点该账号「打开面板」→「概览」上传 state.json</div>`
+       点该账号的「扫码登录」用手机抖音扫码；服务器被风控时改点「用本机扫码」
+       （需先在电脑上启动 <b>douyin-spark\\启动扫码助手.bat</b>，窗口保持开着）</div>`
     : '';
 
   list.innerHTML = alertHtml + accounts.map(a => `
@@ -299,6 +301,7 @@ async function startLogin(id, ev) {
   document.getElementById('mRetry').style.display = 'none';
   document.getElementById('qrbox').innerHTML = '<span class="ph">正在生成二维码…</span>';
   setState('启动浏览器中…', 'warn');
+  probeAgent(id);
 
   try {
     await api(`/api/login/start/${id}`, { method: 'POST' });
@@ -361,34 +364,87 @@ function setState(text, cls) {
 
 function stopTimers() { clearInterval(qrTimer); clearInterval(pollTimer); }
 
+/* 本机助手状态：ok / bad_key / offline —— 三种情况给三种提示，
+   别再让「口令不对」看起来像「没启动」 */
+function agentHintText(st) {
+  if (st === 'ok') {
+    return '本机助手：<b style="color:#5ad08a">在线</b>，点下面按钮就会在电脑上弹出扫码窗口';
+  }
+  if (st === 'bad_key') {
+    return '本机助手：<b style="color:#ffc861">口令不对</b>（已连上服务器，但被 401 拒绝）——' +
+           '改 local-key.txt 里的【管理员口令】后重启助手';
+  }
+  return '本机助手：<b style="color:#ff7b72">未运行</b>——需先在电脑上双击 douyin-spark\\启动扫码助手.bat';
+}
+
+async function probeAgent(id) {
+  const el = document.getElementById('mAgentHint');
+  el.className = 'hint';
+  el.innerHTML = '正在检查本机扫码助手…';
+  try {
+    const d = await api(`/api/agent/status/${id}`);
+    el.innerHTML = agentHintText(d.agent_state);
+    if (d.status === 'running') el.innerHTML += '（有一单正在进行）';
+  } catch (e) {
+    el.innerHTML = '';
+  }
+}
+
+let agentPollStart = 0;
+
 async function agentLogin() {
   if (!loginAcc) return;
   stopTimers();
-  setState('正在请求本机助手…', 'warn');
+  setState('正在呼叫本机助手…', 'warn');
+  let d;
   try {
     const r = await fetch(`/api/agent/request/${loginAcc}`, { method: 'POST' });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error || '请求失败');
-    if (!d.agent_online) {
-      setState('本机助手未运行：请先双击「启动扫码助手.bat」，再点本按钮', 'err');
-      return;
-    }
-    setState('本机即将弹出扫码窗口，请扫码…', 'warn');
-    document.getElementById('qrbox').innerHTML =
-      '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.7;text-align:left">' +
-      '已通知你本机的扫码助手，请在弹出的浏览器窗口里用手机扫码。<br><br>' +
-      '扫码成功后会<b>自动回传</b>到服务器，这里会显示“登录成功”。</div>';
-    pollAgent();
+    d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.detail || d.error || ('HTTP ' + r.status));
   } catch (e) {
-    setState(e.message, 'err');
+    setState('下单失败：' + e.message, 'err');
+    return;
   }
+  probeAgent(loginAcc);
+
+  if (d.agent_state === 'bad_key') {
+    setState('助手在跑，但口令不对（被服务器 401 拒绝）', 'err');
+    document.getElementById('qrbox').innerHTML =
+      '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.75;text-align:left">' +
+      '你电脑上的助手确实在连服务器，但带的<b>口令不是管理员口令</b>。<br><br>' +
+      '改法：用记事本打开 <b>douyin-spark\\local-key.txt</b>，只留一行<b>管理员口令</b>' +
+      '（控制台登录用的那个，不是访客口令），存盘后关掉助手窗口重开。<br><br>' +
+      '<span style="color:#888">助手的 agent.log 里会写着 HTTP 401。</span></div>';
+    return;
+  }
+  if (!d.agent_online) {
+    setState('本机扫码助手没有在运行', 'err');
+    document.getElementById('qrbox').innerHTML =
+      '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.75;text-align:left">' +
+      '服务器已经接下这一单，但<b>没有任何助手连过来取</b>，所以不会弹窗。<br><br>' +
+      '在你自己的电脑上：<br>' +
+      '1. 进入项目目录 <b>douyin-spark</b>；<br>' +
+      '2. 双击 <b>启动扫码助手.bat</b>；<br>' +
+      '3. 窗口里出现「✅ 已连上服务器且口令正确」；<br>' +
+      '4. 再回到这里点「用本机扫码」。<br><br>' +
+      '<span style="color:#888">窗口要一直开着（可最小化）；关掉窗口就等于停用扫码。</span></div>';
+    return;
+  }
+  setState(d.reused ? '这一单已在队列里，等助手接单…' : '已通知本机助手，正在等它接单…', 'warn');
+  document.getElementById('qrbox').innerHTML =
+    '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.7;text-align:left">' +
+    '已下单，请看你电脑上弹出的浏览器窗口，在里面用手机抖音扫码。<br><br>' +
+    '扫码成功会<b>自动回传</b>到服务器，这里会显示「登录成功」。</div>';
+  pollAgent();
 }
 
 function pollAgent() {
   clearInterval(pollTimer);
+  agentPollStart = Date.now();
   pollTimer = setInterval(async () => {
     try {
       const d = await api(`/api/agent/status/${loginAcc}`);
+      const waited = Math.round((Date.now() - agentPollStart) / 1000);
       if (d.status === 'success') {
         setState('登录成功，登录态已写入该账号', 'ok');
         stopTimers();
@@ -399,6 +455,16 @@ function pollAgent() {
       } else if (d.status === 'failed') {
         setState('本机扫码未完成：' + (d.error || '超时或取消'), 'err');
         stopTimers();
+      } else if (d.status === 'expired') {
+        setState('这一单已作废：' + (d.error || '助手没接单'), 'err');
+        stopTimers();
+      } else if (d.status === 'running') {
+        setState('本机已弹出扫码窗口，请完成扫码（' + waited + 's）', 'warn');
+      } else if (waited > 15) {
+        const tail = d.agent_state === 'ok'
+          ? '助手在线，但没取到这一单，点「取消」后重新点扫码'
+          : '助手没在运行，先启动它再重试';
+        setState('等待助手接单 ' + waited + 's：' + tail, 'err');
       }
     } catch (e) { /* 忽略 */ }
   }, 2500);

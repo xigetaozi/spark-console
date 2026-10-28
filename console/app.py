@@ -381,14 +381,53 @@ async def api_scan(file: UploadFile = File(...)) -> Response:
 AGENT_TASKS: dict[str, dict] = {}
 AGENT_LOCK = threading.Lock()
 AGENT_SEEN: list[float] = []
+# 最近一次「带着错误口令来敲门」的时间：用来区分「助手没启动」和「助手在跑但口令不对」。
+# 没有这个，前端只能一律提示"请先启动助手"，用户看到的和真相经常不是一回事。
+AGENT_BADKEY: list[float] = []
+AGENT_HEARTBEAT = 50      # 心跳有效期（秒）：比长轮询的 20s 宽裕一倍
+AGENT_TASK_TTL = 120      # 任务作废时间（秒）：防止助手一上线就弹出半小时前的旧任务
+
+
+def _mark_seen() -> None:
+    AGENT_SEEN.append(time.time())
+    if len(AGENT_SEEN) > 200:
+        del AGENT_SEEN[:-200]
 
 
 def _agent_authed(request: Request) -> bool:
-    return bool(CONSOLE_PASSWORD) and request.headers.get("X-Console-Key", "") == CONSOLE_PASSWORD
+    ok = bool(CONSOLE_PASSWORD) and request.headers.get("X-Console-Key", "") == CONSOLE_PASSWORD
+    if not ok:
+        AGENT_BADKEY.append(time.time())
+        if len(AGENT_BADKEY) > 200:
+            del AGENT_BADKEY[:-200]
+        audit("agent_badkey", "-", "口令与 CONSOLE_PASSWORD 不一致")
+    return ok
 
 
 def _agent_online() -> bool:
-    return bool(AGENT_SEEN) and (time.time() - AGENT_SEEN[-1] < 45)
+    return bool(AGENT_SEEN) and (time.time() - AGENT_SEEN[-1] < AGENT_HEARTBEAT)
+
+
+def _agent_state() -> str:
+    """助手状态三态：ok=在线；bad_key=连上了但口令错；offline=根本没启动。"""
+    if _agent_online():
+        return "ok"
+    if AGENT_BADKEY and (time.time() - AGENT_BADKEY[-1] < 300):
+        return "bad_key"
+    return "offline"
+
+
+def _task_fresh(t: dict | None) -> bool:
+    return bool(t) and (time.time() - t.get("ts", 0) < AGENT_TASK_TTL)
+
+
+@app.get("/api/agent/ping")
+def agent_ping(request: Request) -> Response:
+    """助手自检/心跳：校验口令并刷新在线状态，不派任务。"""
+    if not _agent_authed(request):
+        return JSONResponse({"ok": False, "error": "口令不正确"}, 401)
+    _mark_seen()
+    return JSONResponse({"ok": True, "server": "spark-console", "ts": int(time.time())})
 
 
 @app.post("/api/agent/request/{acc}")
@@ -397,24 +436,31 @@ def agent_request(acc: str, request: Request) -> Response:
         return JSONResponse({"ok": False, "error": "未授权"}, 401)
     if acc not in [a["id"] for a in list_accounts()]:
         return JSONResponse({"ok": False, "error": "未知账号"}, 404)
-    rid = secrets.token_hex(8)
     with AGENT_LOCK:
+        old = AGENT_TASKS.get(acc)
+        # 幂等：重复点按钮时复用未完成的那一单。
+        # 否则每次点击都会换 req_id，助手手里的旧 req_id 回传时被判定"任务不匹配"，
+        # 表现就是"窗口弹了、扫了、却一直转圈"。
+        if _task_fresh(old) and old.get("status") in ("pending", "running"):
+            return JSONResponse({"ok": True, "req_id": old["req_id"], "reused": True,
+                                 "status": old.get("status"), "agent_online": _agent_online(),
+                                 "agent_state": _agent_state()})
+        rid = secrets.token_hex(8)
         AGENT_TASKS[acc] = {"req_id": rid, "ts": time.time(), "status": "pending", "error": ""}
     audit("agent_request", acc, rid)
-    return JSONResponse({"ok": True, "req_id": rid, "agent_online": _agent_online()})
+    return JSONResponse({"ok": True, "req_id": rid, "reused": False, "status": "pending",
+                         "agent_online": _agent_online(), "agent_state": _agent_state()})
 
 
 @app.get("/api/agent/pending")
 def agent_pending(request: Request) -> Response:
     if not _agent_authed(request):
         return JSONResponse({"error": "未授权"}, 401)
-    AGENT_SEEN.append(time.time())
-    if len(AGENT_SEEN) > 200:
-        del AGENT_SEEN[:-200]
+    _mark_seen()
     for _ in range(20):  # 长轮询 20 秒
         with AGENT_LOCK:
             for aid, t in AGENT_TASKS.items():
-                if t["status"] == "pending":
+                if t["status"] == "pending" and _task_fresh(t):
                     t["status"] = "running"
                     return JSONResponse({"acc": aid, "req_id": t["req_id"]})
         time.sleep(1)
@@ -425,12 +471,14 @@ def agent_pending(request: Request) -> Response:
 def agent_result(request: Request, payload: dict) -> Response:
     if not _agent_authed(request):
         return JSONResponse({"ok": False, "error": "未授权"}, 401)
+    _mark_seen()
     rid = str(payload.get("req_id", ""))
     acc = str(payload.get("acc", ""))
     with AGENT_LOCK:
         t = AGENT_TASKS.get(acc)
         if not t or t["req_id"] != rid:
-            return JSONResponse({"ok": False, "error": "任务不匹配"}, 409)
+            audit("agent_stale", acc, rid)
+            return JSONResponse({"ok": False, "error": "任务不匹配（可能已超时或被新请求取代）"}, 409)
         if payload.get("ok") and payload.get("state_b64"):
             try:
                 raw = base64.b64decode(payload["state_b64"])
@@ -455,8 +503,13 @@ def agent_status(acc: str, request: Request) -> Response:
     if not _authed(request):
         return JSONResponse({"ok": False, "error": "未授权"}, 401)
     t = AGENT_TASKS.get(acc) or {}
-    return JSONResponse({"status": t.get("status", "idle"), "error": t.get("error", ""),
-                         "agent_online": _agent_online()})
+    status = t.get("status", "idle")
+    err = t.get("error", "")
+    # 卡在 running 超过 TTL（助手中途被关掉/断网）时别让前端无限转圈
+    if status in ("pending", "running") and not _task_fresh(t):
+        status, err = "expired", "助手在 2 分钟内没有接下这一单，已作废"
+    return JSONResponse({"status": status, "error": err,
+                         "agent_online": _agent_online(), "agent_state": _agent_state()})
 
 
 @app.get("/api/audit")

@@ -272,12 +272,14 @@ def index() -> FileResponse:
 
 # 每次改动后端逻辑就把这个号 +1：部署后 curl /api/health 一看就知道线上到底换没换代码。
 # （排查过太多次"改了没生效"，其实都是进程没重启 / 文件没传上去。）
-BUILD = "2026-10-28.4"
+BUILD = "2026-10-28.5"
 
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "build": BUILD, "pool": browser_pool.diagnostics()}
+    # 带上 data / port：a、b 两个实例共用一份代码，靠这两个字段区分是谁在答话。
+    return {"ok": True, "build": BUILD, "port": os.environ.get("PORT", "8000"),
+            "data": str(DATA_DIR), "pool": browser_pool.diagnostics()}
 
 
 _expiry_cache: dict = {"mtime": None, "data": {"at": None, "days": None, "level": "none"}}
@@ -745,4 +747,9 @@ def api_logs(n: int = 300, token: str = Header(default="", alias="X-Auth-Token")
 if __name__ == "__main__":
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8000"))
+    # 一行横幅，多实例排障专用：同一份代码跑 a/b 两个实例时，
+    # journalctl 里只要看这行就知道是哪个账号、跑的哪个版本。
+    logger.info("=" * 60)
+    logger.info("douyin-spark 启动 | build=%s | port=%s | data=%s", BUILD, port, DATA_DIR)
+    logger.info("=" * 60)
     uvicorn.run(app, host=host, port=port, log_level="info")

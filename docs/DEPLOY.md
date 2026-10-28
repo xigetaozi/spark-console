@@ -221,8 +221,8 @@ sudo journalctl -u douyin-spark@a -n 50 --no-pager
 
 ```bash
 # 1) 线上代码版本（BUILD 号在 douyin-spark/app.py 顶部，改后端就 +1）
-curl -s http://127.0.0.1:8081/api/health
-#    {"ok":true,"build":"2026-10-28.4","pool":{"worker":"chat-browser",...}}
+curl -s http://127.0.0.1:8000/api/health
+#    {"ok":true,"build":"2026-10-28.5","port":"8000","data":".../a","pool":{...}}
 #    build 不对 / 没有 pool 字段 => 还是旧代码
 
 # 2) 进程启动时间，和你的提交时间对比
@@ -234,6 +234,23 @@ journalctl -u douyin-spark@a --since '10 min ago' | grep '浏览器工作线程�
 
 内存文件会随着重启归零：面板上「实时监听 · 已运行 N 轮」每轮 30 秒，
 如果 N×30s 明显大于你上次重启的时间，说明进程压根没重启过。
+
+### 多账号：改了代码，**每个实例都要重启**
+
+`douyin-spark@a` 和 `douyin-spark@b` 共用 `/opt/douyin-spark` **同一份代码**，
+只是 `EnvironmentFile` 里的 `PORT` / `SPARK_DATA_DIR` 不同。`git pull` 只改文件，
+已在跑的进程仍持有旧模块，所以只重启一个实例就会出现「A 好了、B 还是老报错」。
+
+```bash
+cd /opt/douyin-spark && git pull
+sudo systemctl restart douyin-spark@a douyin-spark@b
+
+# 两边 build 必须一致，data 应分别指向各自的 a / b 目录
+for p in 8000 8001; do echo -n "$p -> "; curl -s http://127.0.0.1:$p/api/health; echo; done
+```
+
+哪边 build 落后，就是哪边没重启。启动日志里也会有一行
+`douyin-spark 启动 | build=... | port=... | data=...`，直接区分实例。
 
 ---
 

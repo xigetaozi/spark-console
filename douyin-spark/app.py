@@ -591,6 +591,18 @@ def api_inbox_scan(token: str = Header(default="", alias="X-Auth-Token")) -> dic
         reply_lock.release()
 
 
+@app.post("/api/browser/reset")
+def api_browser_reset(token: str = Header(default="", alias="X-Auth-Token")) -> dict:
+    """丢掉当前浏览器会话并换一条干净的工作线程。
+
+    典型用途：撞上 "Playwright Sync API inside the asyncio loop" 之后，
+    线程里残留的事件循环只能靠换线程清掉，不必重启整个服务。
+    """
+    _check_auth(token)
+    browser_pool.reset()
+    return {"ok": True, "pool": browser_pool.diagnostics()}
+
+
 @app.post("/api/inbox/draft")
 def api_inbox_draft(body: PeerBody, token: str = Header(default="", alias="X-Auth-Token")) -> dict:
     _check_auth(token)

@@ -251,4 +251,8 @@ sudo du -sh /opt/douyin-spark-data/*
 
 # 消息归档过大时（>8MB 自动轮转，也可手动清理）
 sudo ls -lh /opt/douyin-spark-data/a/messages.jsonl
+
+# 浏览器会话卡死 / 报 Sync API 错时，不重启服务也能换一条干净线程
+TOKEN=$(grep -m1 AUTH_TOKEN /opt/douyin-spark-data/a/env | cut -d= -f2-)
+curl -s -X POST http://127.0.0.1:8081/api/browser/reset -H "X-Auth-Token: $TOKEN"
 ```

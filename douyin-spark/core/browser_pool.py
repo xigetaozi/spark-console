@@ -58,6 +58,8 @@ _pending = 0
 #   这里自己造线程，并在入口第一件事就把事件循环摘干净，从此和上层调度方式无关。
 _jobs: queue.Queue = queue.Queue()
 _worker: threading.Thread | None = None
+# 手动重置用：置位后工作线程把手上的活跑完就退休，下次调用换一条干净线程
+_retire_flag = threading.Event()
 
 
 class _FreshThread(Exception):
@@ -123,6 +125,11 @@ def _worker_main() -> None:
         except BaseException as e:      # noqa: BLE001 - 原样回传给调用方
             fut.set_exception(e)
         _done()
+        if _retire_flag.is_set():
+            _retire_flag.clear()
+            logger.info("收到重置请求，工作线程 %s 退休", threading.current_thread().name)
+            _retire_self()
+            return
 
 
 def _done() -> None:
@@ -387,9 +394,19 @@ def stats() -> dict:
 
 
 def reset() -> None:
-    """手动释放会话（换登录态、或怀疑页面状态坏了时用）。"""
+    """释放会话，并把当前工作线程换掉。
+
+    线程里一旦残留了 Playwright 的事件循环，本线程就再也 start 不了新的实例
+    （只能 stop 掉那个实例才清得掉，而泄漏的实例我们未必还持有引用），
+    换线程是唯一稳妥的恢复方式。
+    """
     try:
         _submit_job(_destroy).result(timeout=20)
+    except Exception:
+        pass
+    _retire_flag.set()
+    try:
+        _submit_job(lambda: None).result(timeout=5)   # 让线程跑到检查点
     except Exception:
         pass
 

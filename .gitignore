@@ -60,3 +60,8 @@ douyin-spark/demo-data/
 
 # 控制台审计日志（含 IP 与操作记录）
 console/audit.jsonl
+
+# 扫码助手使用的独立浏览器配置目录
+douyin-spark/.agent-profile/
+douyin-spark/.agent-profile-bw/
+douyin-spark/agent_last.png

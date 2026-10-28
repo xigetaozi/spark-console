@@ -432,9 +432,10 @@ async function agentLogin() {
   }
   setState(d.reused ? '这一单已在队列里，等助手接单…' : '已通知本机助手，正在等它接单…', 'warn');
   document.getElementById('qrbox').innerHTML =
-    '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.7;text-align:left">' +
-    '已下单，请看你电脑上弹出的浏览器窗口，在里面用手机抖音扫码。<br><br>' +
-    '扫码成功会<b>自动回传</b>到服务器，这里会显示「登录成功」。</div>';
+    '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.75;text-align:left">' +
+    '接下来会在<b>你自己的电脑</b>上弹出一个浏览器窗口，在那里用手机抖音扫码。<br><br>' +
+    '⚠️ 窗口可能被挡在其他窗口后面 —— 没看到就按 <b>Alt+Tab</b> 或看任务栏。<br><br>' +
+    '<span style="color:#888">扫码成功后会自动回传，这里显示「登录成功」。</span></div>';
   pollAgent();
 }
 
@@ -459,7 +460,7 @@ function pollAgent() {
         setState('这一单已作废：' + (d.error || '助手没接单'), 'err');
         stopTimers();
       } else if (d.status === 'running') {
-        setState('本机已弹出扫码窗口，请完成扫码（' + waited + 's）', 'warn');
+        setState((d.progress || '本机助手已接单，正在准备扫码窗口') + '（' + waited + 's）', 'warn');
       } else if (waited > 15) {
         const tail = d.agent_state === 'ok'
           ? '助手在线，但没取到这一单，点「取消」后重新点扫码'

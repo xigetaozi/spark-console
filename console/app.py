@@ -44,6 +44,9 @@ STATIC = BASE / "index.html"
 # 存在时 `/` 展示主页、控制台留在 `/console`；不存在时 `/` 直接就是控制台。
 HOME = BASE / "home.html"
 
+# 控制台页面禁止缓存：改版后浏览器必须拿到新 JS，否则界面提示和后台逻辑会各说各话
+NO_STORE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
 app = FastAPI(title="Spark Console")
 
 
@@ -233,14 +236,16 @@ def index() -> FileResponse:
     而服务器上放了主页时自动变成「/ 主页 + /console 控制台」。
     """
     if HOME.exists():
-        return FileResponse(HOME)
-    return FileResponse(STATIC)
+        return FileResponse(HOME, headers=NO_STORE)
+    return FileResponse(STATIC, headers=NO_STORE)
 
 
 @app.get("/console")
 def console() -> FileResponse:
     """账号控制台。放在 /console，与主页的入口保持一致。"""
-    return FileResponse(STATIC)
+    # 页面是本项目的唯一入口，改版后必须让浏览器拿到新版：
+    # 之前发过一次新版，浏览器却仍跑旧 JS，界面提示和后台逻辑对不上，排查方向全跑偏。
+    return FileResponse(STATIC, headers=NO_STORE)
 
 
 def _authed(request: Request) -> bool:
@@ -385,7 +390,19 @@ AGENT_SEEN: list[float] = []
 # 没有这个，前端只能一律提示"请先启动助手"，用户看到的和真相经常不是一回事。
 AGENT_BADKEY: list[float] = []
 AGENT_HEARTBEAT = 50      # 心跳有效期（秒）：比长轮询的 20s 宽裕一倍
-AGENT_TASK_TTL = 120      # 任务作废时间（秒）：防止助手一上线就弹出半小时前的旧任务
+AGENT_TASK_TTL = 120      # 等接单最长（秒）：没人取就作废，前端不无限转圈
+AGENT_RUN_TTL = 600       # 接单后最长（秒）：扫码本身允许 5 分钟
+
+# 助手当前做到哪一步（弹窗、等扫码、手动点登录…），给前端做进度提示，
+# 也让我在服务器端就能看到用户电脑上发生了什么，不必靠猜。
+AGENT_STEPS = {
+    "accepted": "本机助手已接单，正在启动浏览器",
+    "launched": "已弹出浏览器窗口，正在打开抖音",
+    "qr_ready": "二维码已出现，请用手机扫描",
+    "captcha": "抖音要求滑块验证，请在弹出窗口里拖动滑块",
+    "manual": "窗口已打开但没自动出码，请在窗口里点右上角「登录」",
+    "scanning": "已检测到登录态，正在保存",
+}
 
 
 def _mark_seen() -> None:
@@ -417,8 +434,38 @@ def _agent_state() -> str:
     return "offline"
 
 
-def _task_fresh(t: dict | None) -> bool:
-    return bool(t) and (time.time() - t.get("ts", 0) < AGENT_TASK_TTL)
+def _task_expired(t: dict) -> bool:
+    """任务是否该判死。
+
+    等待接单：2 分钟没人取 → 作废。
+    已接单：扫码本身要几分钟，只要助手还活着就不算超时；助手掉线才提前判死，
+    总上限 10 分钟兜底。
+    """
+    age = time.time() - t.get("ts", 0)
+    status = t.get("status")
+    if status == "pending":
+        return age > AGENT_TASK_TTL
+    if status == "running":
+        return age > AGENT_RUN_TTL or (age > AGENT_TASK_TTL and not _agent_online())
+    return True
+
+
+@app.post("/api/agent/progress")
+def agent_progress(request: Request, payload: dict) -> Response:
+    """助手汇报进度：接了单 / 弹了窗 / 出了码 / 要手动点登录。"""
+    if not _agent_authed(request):
+        return JSONResponse({"ok": False, "error": "未授权"}, 401)
+    _mark_seen()
+    acc = str(payload.get("acc", ""))
+    rid = str(payload.get("req_id", ""))
+    step = str(payload.get("step", ""))[:32]
+    with AGENT_LOCK:
+        t = AGENT_TASKS.get(acc)
+        if not t or t["req_id"] != rid:
+            return JSONResponse({"ok": False, "error": "任务不匹配"}, 409)
+        t["step"] = step
+        t["progress"] = AGENT_STEPS.get(step, step)
+    return JSONResponse({"ok": True})
 
 
 @app.get("/api/agent/ping")
@@ -441,10 +488,11 @@ def agent_request(acc: str, request: Request) -> Response:
         # 幂等：重复点按钮时复用未完成的那一单。
         # 否则每次点击都会换 req_id，助手手里的旧 req_id 回传时被判定"任务不匹配"，
         # 表现就是"窗口弹了、扫了、却一直转圈"。
-        if _task_fresh(old) and old.get("status") in ("pending", "running"):
+        if old and old.get("status") in ("pending", "running") and not _task_expired(old):
             return JSONResponse({"ok": True, "req_id": old["req_id"], "reused": True,
                                  "status": old.get("status"), "agent_online": _agent_online(),
-                                 "agent_state": _agent_state()})
+                                 "agent_state": _agent_state(),
+                                 "progress": old.get("progress", "")})
         rid = secrets.token_hex(8)
         AGENT_TASKS[acc] = {"req_id": rid, "ts": time.time(), "status": "pending", "error": ""}
     audit("agent_request", acc, rid)
@@ -460,7 +508,7 @@ def agent_pending(request: Request) -> Response:
     for _ in range(20):  # 长轮询 20 秒
         with AGENT_LOCK:
             for aid, t in AGENT_TASKS.items():
-                if t["status"] == "pending" and _task_fresh(t):
+                if t["status"] == "pending" and not _task_expired(t):
                     t["status"] = "running"
                     return JSONResponse({"acc": aid, "req_id": t["req_id"]})
         time.sleep(1)
@@ -505,10 +553,13 @@ def agent_status(acc: str, request: Request) -> Response:
     t = AGENT_TASKS.get(acc) or {}
     status = t.get("status", "idle")
     err = t.get("error", "")
-    # 卡在 running 超过 TTL（助手中途被关掉/断网）时别让前端无限转圈
-    if status in ("pending", "running") and not _task_fresh(t):
-        status, err = "expired", "助手在 2 分钟内没有接下这一单，已作废"
+    # 卡在 pending/running 且已判死（助手中途被关掉/断网）时别让前端无限转圈
+    if status in ("pending", "running") and _task_expired(t):
+        status = "expired"
+        err = err or ("助手在 2 分钟内没有接下这一单，已作废"
+                      if t.get("status") == "pending" else "助手已掉线，这一单作废")
     return JSONResponse({"status": status, "error": err,
+                         "step": t.get("step", ""), "progress": t.get("progress", ""),
                          "agent_online": _agent_online(), "agent_state": _agent_state()})
 
 

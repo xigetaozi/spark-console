@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -305,8 +306,13 @@ def scan_inbox(days: int = INBOX_DAYS, exclude_groups: bool = EXCLUDE_GROUPS) ->
         # 扫描不需要等"整张列表热起来"：有 2 行就先开工，靠滚动把剩下的带出来，
         # 这样首屏等待从 ~56 秒降到 ~15 秒，整轮更快。
         rows = browser_pool.call(_collect_rows, timeout=300, min_items=2, max_wait=60)
+    except (TimeoutError, FuturesTimeoutError):
+        # 5 分钟还没跑完：多半是浏览器会话被别的任务占着，或抖音页面一直不出列表
+        return {"at": automation._now(), "items": [],
+                "error": "扫描超时：浏览器会话被占用或抖音页面加载过慢，请等 10 秒再点一次"}
     except Exception as e:
-        return {"at": automation._now(), "items": [], "error": f"扫描失败：{str(e)[:140]}"}
+        msg = str(e)[:140] or e.__class__.__name__
+        return {"at": automation._now(), "items": [], "error": f"扫描失败：{msg}"}
 
     today = _today()
 

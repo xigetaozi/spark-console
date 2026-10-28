@@ -3228,7 +3228,16 @@
             else ElementPlus.ElMessage.success('扫描完成，共 ' + (r.data.items || []).length + ' 个会话');
             await loadAudit();
           } catch (e) {
-            ElementPlus.ElMessage.error(e.response?.data?.detail || '扫描失败');
+            // 后端/代理没给出 detail 时，至少把状态码亮出来：
+            // 502/504 = 网关或代理超时（不是抖音那边的问题），比一句「扫描失败」好排查得多
+            const d = e.response?.data?.detail;
+            let msg = typeof d === 'string' && d ? d : '';
+            if (!msg) {
+              msg = e.code === 'ECONNABORTED'
+                ? '扫描超时：请求被中断，请再点一次'
+                : (e.response?.status ? '扫描失败（HTTP ' + e.response.status + '）' : '扫描失败（网络中断）');
+            }
+            ElementPlus.ElMessage.error(msg);
           } finally {
             inboxScanning.value = false;
           }

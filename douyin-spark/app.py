@@ -265,7 +265,9 @@ class RunBody(BaseModel):
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    # 面板是单文件应用，改版后必须让浏览器拿新的，否则又会看到旧提示文案
+    return FileResponse(STATIC_DIR / "index.html",
+                        headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 @app.get("/api/health")

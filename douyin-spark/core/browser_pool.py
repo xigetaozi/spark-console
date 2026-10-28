@@ -39,6 +39,12 @@ _state: dict[str, Any] = {
 }
 _state_lock = threading.Lock()
 
+# 排队长度：单线程执行器，一旦上一次操作卡住（页面假死 / 抖音不渲染），
+# 后面点几次就排几次，每次都要等到超时才报错，表现成"连续点连续失败"。
+# 这里卡个上限，超了立刻返回可读原因，而不是让用户干等 5 分钟。
+MAX_QUEUE = 3
+_pending = 0
+
 
 # --------------------------------------------------------------------------- 内部
 
@@ -159,6 +165,34 @@ def _run(fn: Callable, target: str | None, min_items: int, max_wait: float):
         return fn(page)
 
 
+def _run_counted(fn: Callable, target: str | None, min_items: int, max_wait: float):
+    """排队计数必须是"任务真正结束"才减：
+
+    调用方超时只是它不等了，执行线程还在跑；如果按超时减计数，
+    卡住的那个就会被当成空闲，后面的请求继续往里堆。
+    """
+    global _pending
+    try:
+        return _run(fn, target, min_items, max_wait)
+    finally:
+        with _state_lock:
+            _pending = max(0, _pending - 1)
+
+
+def _submit(fn: Callable, target: str | None, min_items: int, max_wait: float):
+    global _pending
+    with _state_lock:
+        if _pending >= MAX_QUEUE:
+            raise RuntimeError("浏览器正在忙上一条任务（上一个扫描/发送还没结束），请稍后再试")
+        _pending += 1
+    try:
+        return _exec.submit(_run_counted, fn, target, min_items, max_wait)
+    except Exception:
+        with _state_lock:
+            _pending = max(0, _pending - 1)
+        raise
+
+
 # --------------------------------------------------------------------------- 对外
 
 def call(fn: Callable, timeout: float = 240, target: str | None = None,
@@ -167,7 +201,7 @@ def call(fn: Callable, timeout: float = 240, target: str | None = None,
 
     fn 里不要做长时间阻塞（网络/模型调用），浏览器线程被占住会拖慢别人。
     """
-    fut = _exec.submit(_run, fn, target, min_items, max_wait)
+    fut = _submit(fn, target, min_items, max_wait)
     return fut.result(timeout=timeout)
 
 
@@ -182,12 +216,15 @@ def warm_async(target: str | None = None, min_items: int = 2, max_wait: float = 
     """
     if _alive():
         return False
+    with _state_lock:
+        if _pending:          # 已经有任务在用浏览器，别去抢队列
+            return False
     if not _warming.acquire(blocking=False):
         return False
 
     def _bg():
         try:
-            _exec.submit(_run, lambda page: True, target, min_items, max_wait).result(timeout=150)
+            _submit(lambda page: True, target, min_items, max_wait).result(timeout=150)
             logger.info("后台预热完成")
         except Exception as e:
             logger.info("后台预热失败：%s", str(e)[:100])
@@ -206,6 +243,7 @@ def stats() -> dict:
         "reuses": _state.get("reuses", 0),
         "idle_sec": round(now - _state["used_at"]) if _state["used_at"] else None,
         "age_sec": round(now - _state["opened_at"]) if _state["opened_at"] else None,
+        "pending": _pending,
     }
 
 

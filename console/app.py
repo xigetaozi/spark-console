@@ -640,6 +640,15 @@ def api_account_config(acc: str, request: Request) -> Response:
 # 反向代理：把 /p/<acc>/... 转发到该账号实例
 _HOP = {"transfer-encoding", "connection", "keep-alive", "content-encoding", "content-length"}
 
+# 会真的去开浏览器的接口：冷启动要 1~3 分钟，不能被代理层提前掐断。
+# 之前统一给 120s，导致「扫描收件箱」在冷启动时必然 502 —— 前端只能看到一句「扫描失败」。
+_SLOW_PREFIX = ("api/inbox/scan", "api/inbox/draft", "api/inbox/reply",
+                "api/run", "api/watch/run", "api/reply/run")
+
+
+def _proxy_timeout(path: str) -> int:
+    return 600 if path.startswith(_SLOW_PREFIX) else 120
+
 
 @app.api_route("/p/{acc}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy(acc: str, path: str, request: Request) -> Response:
@@ -675,10 +684,13 @@ async def proxy(acc: str, path: str, request: Request) -> Response:
                 hdrs["X-Auth-Token"] = token
         else:
             hdrs["X-Auth-Token"] = env.get("AUTH_TOKEN", "")
-    st, rh, rb = await asyncio.to_thread(http_call, request.method, url, hdrs, body, 120)
+    tmo = _proxy_timeout(path)
+    st, rh, rb = await asyncio.to_thread(http_call, request.method, url, hdrs, body, tmo)
     if st == 0:
-        return Response(f"账号 {acc} 的服务无响应（端口 {port} 未监听）", status_code=502,
-                        media_type="text/plain; charset=utf-8")
+        # 必须回 JSON：前端只认 data.detail，回纯文本会被吞成一句没头没尾的「扫描失败」
+        return JSONResponse(
+            {"detail": f"账号 {acc} 的服务无响应（端口 {port} 未监听，或请求超过 {tmo}s）"},
+            status_code=502)
 
     ctype = rh.get("Content-Type", rh.get("content-type", "application/octet-stream"))
     # HTML 里的绝对路径需要加前缀，否则 iframe 内会请求到控制台自身

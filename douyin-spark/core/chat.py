@@ -158,7 +158,9 @@ _SCROLL_JS = """
   if (!t) return false;
   let sc = null, el = t;
   while (el && el !== document.body) {
-    if (el.scrollHeight > el.clientHeight + 20 && el.clientHeight > 200) { sc = el; break; }
+    // 只要求「能滚」，不再限制容器高度：账号 b 的列表容器高度不足 200px，
+    // 原来的条件会一路找到 body 返回 null，表现成"只读到首屏十几行"。
+    if (el.scrollHeight > el.clientHeight + 20) { sc = el; break; }
     el = el.parentElement;
   }
   if (!sc) return false;
@@ -174,7 +176,9 @@ _SCROLL_TOP_JS = """
   if (!t) return false;
   let sc = null, el = t;
   while (el && el !== document.body) {
-    if (el.scrollHeight > el.clientHeight + 20 && el.clientHeight > 200) { sc = el; break; }
+    // 只要求「能滚」，不再限制容器高度：账号 b 的列表容器高度不足 200px，
+    // 原来的条件会一路找到 body 返回 null，表现成"只读到首屏十几行"。
+    if (el.scrollHeight > el.clientHeight + 20) { sc = el; break; }
     el = el.parentElement;
   }
   if (!sc) return false;
@@ -254,6 +258,19 @@ def _collect_rows(page, max_steps: int = 18) -> list[dict]:
             pass
         page.wait_for_timeout(1000)
 
+    # 2.5) 列表可能只渲染了寥寥几行（页面刚被预热打开、数据还没回来）。
+    #      此时 scrollHeight 撑不开，_SCROLL_JS 找不到可滚动容器会直接返回 false，
+    #      整轮扫描就以 2~3 条草草结束——用户看到的就是"扫描只出来几条"。
+    #      先等它长到 8 行再开始滚，最多等 20 秒。
+    grow_deadline = time.time() + 20
+    while time.time() < grow_deadline:
+        try:
+            if page.locator(".conversationConversationItemtitle").count() >= 8:
+                break
+        except Exception:
+            pass
+        page.wait_for_timeout(1000)
+
     seen: dict[str, dict] = {}
     stall = 0
     for step in range(max_steps):
@@ -284,6 +301,11 @@ def _collect_rows(page, max_steps: int = 18) -> list[dict]:
 
         page.wait_for_timeout(700 if step else 1500)
         if not moved:
+            # 刚重启 / 刚预热完时，列表容器可能还没撑开，这一步滚不动是正常的。
+            # 前两步先等一等再试，否则会只收到 2~5 行，表现为"扫描只出来几条"。
+            if step < 2:
+                page.wait_for_timeout(1200)
+                continue
             break
         stall = stall + 1 if fresh == 0 else 0
         if stall >= 2:

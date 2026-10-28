@@ -270,9 +270,14 @@ def index() -> FileResponse:
                         headers={"Cache-Control": "no-store, must-revalidate"})
 
 
+# 每次改动后端逻辑就把这个号 +1：部署后 curl /api/health 一看就知道线上到底换没换代码。
+# （排查过太多次"改了没生效"，其实都是进程没重启 / 文件没传上去。）
+BUILD = "2026-10-28.4"
+
+
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    return {"ok": True, "build": BUILD, "pool": browser_pool.diagnostics()}
 
 
 _expiry_cache: dict = {"mtime": None, "data": {"at": None, "days": None, "level": "none"}}

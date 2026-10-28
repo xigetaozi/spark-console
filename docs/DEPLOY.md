@@ -215,6 +215,26 @@ sudo journalctl -u douyin-spark@a -n 50 --no-pager
 
 面板「日志」标签页也能看，带自动刷新。
 
+### 先确认「改的到底上线没有」
+
+排查过太多次「改了没生效」，九成是**文件没传上去**或**进程没重启**。三步定位：
+
+```bash
+# 1) 线上代码版本（BUILD 号在 douyin-spark/app.py 顶部，改后端就 +1）
+curl -s http://127.0.0.1:8081/api/health
+#    {"ok":true,"build":"2026-10-28.4","pool":{"worker":"chat-browser",...}}
+#    build 不对 / 没有 pool 字段 => 还是旧代码
+
+# 2) 进程启动时间，和你的提交时间对比
+systemctl show -p ActiveEnterTimestamp douyin-spark@a
+
+# 3) 新代码特有的启动日志（旧版没有这一行）
+journalctl -u douyin-spark@a --since '10 min ago' | grep '浏览器工作线程已启动'
+```
+
+内存文件会随着重启归零：面板上「实时监听 · 已运行 N 轮」每轮 30 秒，
+如果 N×30s 明显大于你上次重启的时间，说明进程压根没重启过。
+
 ---
 
 ## 八、日常运维

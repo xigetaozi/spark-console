@@ -216,7 +216,16 @@ def _create(target: str | None, min_items: int, max_wait: float):
         asyncio.set_event_loop(None)
     except Exception:
         pass
-    p = sync_playwright().start()
+    try:
+        p = sync_playwright().start()
+    except Exception as e:
+        if "asyncio loop" in str(e):
+            logger.error(
+                "启动 Playwright 撞上事件循环：线程=%s has_loop=%s（说明本线程里还挂着"
+                "一份没 stop 的实例，或同步代码被放进了 async 上下文）",
+                threading.current_thread().name, _thread_has_loop(), exc_info=True,
+            )
+        raise
     t_start = time.time() - t0
     try:
         browser = p.chromium.launch(
@@ -351,24 +360,29 @@ def warm_async(target: str | None = None, min_items: int = 2, max_wait: float = 
     return True
 
 
+def diagnostics() -> dict:
+    """只读线程/队列状态，**不碰 page**。
+
+    page 是 Playwright 对象，只能在它所属的工作线程里访问；健康检查这类
+    从别的线程来的调用只能用这个，别用 stats()。
+    """
+    return {
+        "worker": _worker.name if _worker_alive() else None,
+        "worker_running": _worker_alive(),
+        "pending": _pending,
+        "caller_has_loop": _thread_has_loop(),
+    }
+
+
 def stats() -> dict:
     now = time.time()
-    thread_loop = None
-    try:     # 排障用：如果这里是 True，说明调用方就在事件循环线程上（async 端点里直接调了同步代码）
-        asyncio.get_running_loop()
-        thread_loop = True
-    except RuntimeError:
-        thread_loop = False
     return {
         "alive": _alive(),
         "creates": _state.get("creates", 0),
         "reuses": _state.get("reuses", 0),
         "idle_sec": round(now - _state["used_at"]) if _state["used_at"] else None,
         "age_sec": round(now - _state["opened_at"]) if _state["opened_at"] else None,
-        "pending": _pending,
-        "worker": _worker.name if _worker_alive() else None,
-        "worker_running": _worker_alive(),
-        "caller_has_loop": thread_loop,
+        **diagnostics(),
     }
 
 

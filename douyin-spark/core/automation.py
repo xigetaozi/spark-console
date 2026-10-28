@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import threading
@@ -22,6 +23,21 @@ from .runtime import load_runtime
 from . import slogan
 
 logger = logging.getLogger("douyin-spark")
+
+
+def _start_playwright():
+    """启动同步 Playwright，并且保证当前线程"没有事件循环"。
+
+    playwright 同步 API 的入场检查是 `asyncio.get_running_loop().is_running()`，
+    一旦当前线程正跑着事件循环，就直接抛
+    "It looks like you are using Playwright Sync API inside the asyncio loop"。
+    本函数都是阻塞式抓取，进门前先把循环摘掉，避免被 async 上下文间接调用时炸掉。
+    """
+    try:
+        asyncio.set_event_loop(None)
+    except Exception:
+        pass
+    return sync_playwright().start()
 
 STATE_PATH = DATA_DIR / "state.json"
 SCREENSHOT_PATH = DATA_DIR / "last_error.png"
@@ -363,7 +379,7 @@ def fetch_chat_contacts() -> dict:
 
     browser = None
     try:
-        p = sync_playwright().start()
+        p = _start_playwright()
         try:
             browser = p.chromium.launch(
                 headless=True,
@@ -757,7 +773,7 @@ def run_send(dry_run: bool = False, only_names: list[str] | None = None,
                     started_at=_now())
     browser = None
     try:
-        p = sync_playwright().start()
+        p = _start_playwright()
         try:
             browser = p.chromium.launch(
                 headless=True,

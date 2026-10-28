@@ -200,6 +200,7 @@ sudo certbot --nginx -d <你的域名>
 | 扫码后网页一直转圈 | 连点按钮覆盖了任务 / 助手中途被关 | 新版已改为幂等复用任务，2 分钟不接单自动作废 |
 | 关掉扫码窗口后点按钮不出新码 | 旧任务还挂在 `running`，被"复用"了 | 点「取消」再点「用本机扫码」；或重启助手（启动标识会自动清理上一单） |
 | Playwright 报找不到浏览器 | 缓存路径不匹配 | 检查 `PLAYWRIGHT_BROWSERS_PATH` |
+| 报 `It looks like you are using Playwright Sync API inside the asyncio loop` | ① 该线程里已有一份活着的 Playwright（一次失败没释放就会一直挂着，之后每次都报）；② 同步代码跑在了 uvicorn 的事件循环线程上 | 新版已修：`_create` 失败时立即 `p.stop()`；工作线程发现残留循环会自动退休换新线程；`automation` 启动前统一摘掉当前事件循环。若仍报，说明有 `async def` 里直接调了同步浏览器代码，改成普通 `def` 或 `run_in_threadpool` |
 | 点「扫描收件箱」只弹一句「扫描失败」 | 控制台反代对长任务只等 120s，而冷启动开浏览器要 1~3 分钟 → 代理 502 | 新版已把 scan/draft/reply 的超时放宽到 600s，并回 JSON `detail`；仍旧超时就查 `journalctl` 里 `chat-browser` 的耗时行 |
 | 连点几次「扫描收件箱」全部失败 | 单线程浏览器池被上一次卡住的任务占着，请求排队 | 新版排队上限 3，超了直接提示「浏览器正在忙」，等 10 秒再点 |
 | 定时没执行 | 抖动配置过大 / 名单为空 | 查日志「随机延迟 N 秒」「未配置任何好友」 |

@@ -17,10 +17,12 @@ goto → 等会话列表渐进渲染（实测最长 56 秒）→ 读完关掉"�
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import queue
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future
 from typing import Any, Callable
 
 from playwright.sync_api import sync_playwright
@@ -32,7 +34,6 @@ MAX_PAGE_AGE = 3600       # 单页最长活 1 小时，防止内存缓慢增长
 WARM_ITEMS = 10
 TITLE_SEL = ".conversationConversationItemtitle"
 
-_exec = ThreadPoolExecutor(max_workers=1, thread_name_prefix="chat-browser")
 _state: dict[str, Any] = {
     "p": None, "browser": None, "page": None,
     "opened_at": 0.0, "used_at": 0.0, "reuses": 0, "creates": 0,
@@ -44,6 +45,108 @@ _state_lock = threading.Lock()
 # 这里卡个上限，超了立刻返回可读原因，而不是让用户干等 5 分钟。
 MAX_QUEUE = 3
 _pending = 0
+
+# --------------------------------------------------------------------------- 专属工作线程
+#
+# 为什么不用 ThreadPoolExecutor：
+#   Playwright 同步 API 的入场检查是
+#       self._loop = asyncio.get_running_loop()
+#       if self._loop.is_running(): raise Error("...Sync API inside the asyncio loop...")
+#   也就是说**只要当前线程里有一个正在跑的事件循环，就直接炸**。执行器线程虽然是新的，
+#   但线程是「借」来的：上层（uvicorn / anyio / 某个测试脚手架）如果在这个线程里跑过
+#   asyncio.run()，或者干脆把同步函数放进了 async 上下文，这个线程就会带着循环。
+#   这里自己造线程，并在入口第一件事就把事件循环摘干净，从此和上层调度方式无关。
+_jobs: queue.Queue = queue.Queue()
+_worker: threading.Thread | None = None
+
+
+class _FreshThread(Exception):
+    """当前线程里还残留着上一份 Playwright 的事件循环，这个任务必须换新线程跑。"""
+
+
+def _thread_has_loop() -> bool:
+    """当前线程里是否有一个"正在跑"的事件循环。
+
+    Playwright 同步 API 就是靠这个判定的：有 → 直接抛
+    "It looks like you are using Playwright Sync API inside the asyncio loop"。
+    注意：只要本线程里有一个活着的 Playwright 实例，这里就会是 True（它的私有循环
+    跑在同线程的 greenlet 里），所以它同时也是"这个线程还能不能再 start 一次"的探针。
+    """
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
+
+
+def _ensure_worker() -> None:
+    global _worker
+    with _state_lock:
+        if _worker is not None and _worker.is_alive():
+            return
+        _worker = threading.Thread(target=_worker_main, daemon=True, name="chat-browser")
+        _worker.start()
+
+
+def _retire_self() -> None:
+    """让当前工作线程退出，并保证队列里剩下的任务有人接着跑。"""
+    global _worker
+    with _state_lock:
+        if _worker is threading.current_thread():
+            _worker = None
+    _ensure_worker()
+
+
+def _worker_main() -> None:
+    # 关键一行：让这个线程「没有当前事件循环」。
+    # 之后 get_running_loop() 必然抛 RuntimeError，Playwright 才会自己新建一个私有循环。
+    asyncio.set_event_loop(None)
+    logger.info("浏览器工作线程已启动：%s（无事件循环）", threading.current_thread().name)
+    while True:
+        item = _jobs.get()
+        if item is None:
+            break
+        fn, args, fut = item
+        if not fut.set_running_or_notify_cancel():
+            _done()
+            continue
+        try:
+            fut.set_result(fn(*args))
+        except _FreshThread as e:
+            # 本线程已被 Playwright 的循环占用：把异常交回调用方，自己退休。
+            # 调用方（call）看到这个异常会换一条新线程重试。
+            fut.set_exception(e)
+            _done()
+            logger.info("线程 %s 残留事件循环，退休并换新线程", threading.current_thread().name)
+            _retire_self()
+            return
+        except BaseException as e:      # noqa: BLE001 - 原样回传给调用方
+            fut.set_exception(e)
+        _done()
+
+
+def _done() -> None:
+    global _pending
+    with _state_lock:
+        _pending = max(0, _pending - 1)
+
+
+def _worker_alive() -> bool:
+    return _worker is not None and _worker.is_alive()
+
+
+def _submit_job(fn: Callable, *args) -> Future:
+    """把一个调用丢进专属线程，返回 Future。"""
+    global _pending
+    with _state_lock:
+        if _pending >= MAX_QUEUE:
+            raise RuntimeError("浏览器正在忙上一条任务（上一个扫描/发送还没结束），请稍后再试")
+        _pending += 1
+    _ensure_worker()
+    fut: Future = Future()
+    _jobs.put((fn, args, fut))
+    return fut
+
 
 
 # --------------------------------------------------------------------------- 内部
@@ -106,6 +209,13 @@ def _create(target: str | None, min_items: int, max_wait: float):
 
     _destroy()
     t0 = time.time()
+    # 兜底再摘一次事件循环：Playwright 同步 API 一进场就查
+    # asyncio.get_running_loop().is_running()，只要这个线程「有活着的循环」就抛
+    # "Sync API inside the asyncio loop"。摘掉之后它才会自己建私有循环。
+    try:
+        asyncio.set_event_loop(None)
+    except Exception:
+        pass
     p = sync_playwright().start()
     t_start = time.time() - t0
     try:
@@ -123,6 +233,16 @@ def _create(target: str | None, min_items: int, max_wait: float):
         page.goto(automation.CHAT_URL, timeout=90000, wait_until="domcontentloaded")
         t_goto = time.time() - t0
     except Exception:
+        # 关键：此处 _state 里还没有这个 p（要等下面才 update），
+        # 所以 _destroy() 找不到它。必须用局部变量把刚启动的实例停掉，
+        # 否则它的私有事件循环会一直挂在这个线程上，下一次 start() 就会撞上
+        # "It looks like you are using Playwright Sync API inside the asyncio loop"，
+        # 而且一次失败泄漏一个，之后每次调用都失败。
+        try:
+            p.stop()
+        except Exception:
+            logger.warning("清理失败的 Playwright 实例时出错（线程可能已残留事件循环）",
+                           exc_info=True)
         _destroy()
         raise
 
@@ -148,61 +268,57 @@ def _reap() -> None:
         _destroy()
 
 
-def _run(fn: Callable, target: str | None, min_items: int, max_wait: float):
-    _reap()
+def _ensure_page(target: str | None, min_items: int, max_wait: float):
     page = _state["page"]
-    if page is None or not _alive():
-        page = _create(target, min_items, max_wait)
-    else:
+    if page is not None and _alive():
         _state["reuses"] = _state.get("reuses", 0) + 1
         _state["used_at"] = time.time()
+        return page
+    if _thread_has_loop():
+        # 本线程已经有活着的循环（上一份 Playwright 没释放干净，或有人在里面跑过
+        # asyncio.run）。此时再 start() 必然抛 Sync API 的错，只能换线程。
+        _destroy()
+        raise _FreshThread()
+    return _create(target, min_items, max_wait)
+
+
+def _run(fn: Callable, target: str | None, min_items: int, max_wait: float):
+    _reap()
+    page = _ensure_page(target, min_items, max_wait)
 
     try:
         return fn(page)
     except Exception as e:
         logger.warning("浏览器操作失败，重建会话后重试一次：%s", str(e)[:140])
-        page = _create(target, min_items, max_wait)
+        _destroy()
+        page = _ensure_page(target, min_items, max_wait)
         return fn(page)
 
 
-def _run_counted(fn: Callable, target: str | None, min_items: int, max_wait: float):
-    """排队计数必须是"任务真正结束"才减：
-
-    调用方超时只是它不等了，执行线程还在跑；如果按超时减计数，
-    卡住的那个就会被当成空闲，后面的请求继续往里堆。
-    """
-    global _pending
-    try:
-        return _run(fn, target, min_items, max_wait)
-    finally:
-        with _state_lock:
-            _pending = max(0, _pending - 1)
-
-
 def _submit(fn: Callable, target: str | None, min_items: int, max_wait: float):
-    global _pending
-    with _state_lock:
-        if _pending >= MAX_QUEUE:
-            raise RuntimeError("浏览器正在忙上一条任务（上一个扫描/发送还没结束），请稍后再试")
-        _pending += 1
-    try:
-        return _exec.submit(_run_counted, fn, target, min_items, max_wait)
-    except Exception:
-        with _state_lock:
-            _pending = max(0, _pending - 1)
-        raise
+    return _submit_job(_run, fn, target, min_items, max_wait)
 
 
 # --------------------------------------------------------------------------- 对外
 
 def call(fn: Callable, timeout: float = 240, target: str | None = None,
          min_items: int = WARM_ITEMS, max_wait: float = 80) -> Any:
-    """在执行器线程内执行 fn(page)。
+    """在工作线程内执行 fn(page)。
 
     fn 里不要做长时间阻塞（网络/模型调用），浏览器线程被占住会拖慢别人。
     """
-    fut = _submit(fn, target, min_items, max_wait)
-    return fut.result(timeout=timeout)
+    deadline = time.time() + timeout
+    for attempt in (1, 2):
+        fut = _submit(fn, target, min_items, max_wait)
+        try:
+            return fut.result(timeout=max(1.0, deadline - time.time()))
+        except _FreshThread:
+            # 工作线程里残着上一份 Playwright 的循环（已在上面标了退休），
+            # 换一条全新线程再跑一次；新线程入口会把事件循环摘干净。
+            if attempt == 2:
+                raise
+            logger.info("检测到工作线程残留事件循环，换新线程重试本次操作")
+            continue
 
 
 _warming = threading.Lock()
@@ -237,6 +353,12 @@ def warm_async(target: str | None = None, min_items: int = 2, max_wait: float = 
 
 def stats() -> dict:
     now = time.time()
+    thread_loop = None
+    try:     # 排障用：如果这里是 True，说明调用方就在事件循环线程上（async 端点里直接调了同步代码）
+        asyncio.get_running_loop()
+        thread_loop = True
+    except RuntimeError:
+        thread_loop = False
     return {
         "alive": _alive(),
         "creates": _state.get("creates", 0),
@@ -244,23 +366,28 @@ def stats() -> dict:
         "idle_sec": round(now - _state["used_at"]) if _state["used_at"] else None,
         "age_sec": round(now - _state["opened_at"]) if _state["opened_at"] else None,
         "pending": _pending,
+        "worker": _worker.name if _worker_alive() else None,
+        "worker_running": _worker_alive(),
+        "caller_has_loop": thread_loop,
     }
 
 
 def reset() -> None:
     """手动释放会话（换登录态、或怀疑页面状态坏了时用）。"""
     try:
-        _exec.submit(_destroy).result(timeout=20)
+        _submit_job(_destroy).result(timeout=20)
     except Exception:
         pass
 
 
 def shutdown() -> None:
+    global _worker
     try:
-        _exec.submit(_destroy).result(timeout=20)
+        _submit_job(_destroy).result(timeout=20)
     except Exception:
         pass
     try:
-        _exec.shutdown(wait=False)
+        _jobs.put(None)        # 让工作线程退出
     except Exception:
         pass
+    _worker = None

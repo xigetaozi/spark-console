@@ -133,10 +133,11 @@ _ROWS_JS = """
       timeOut = lines.find(l => TIME_RE.test(l)) || '';
     }
 
-    // 群聊判定：行内有会话类型图标，或预览带「发送者：」前缀，或名字里明确带"群"
-    const isGroup = !!box.querySelector('[class*="commonConversationIcon"]')
-                    || /^[^：:]{1,16}[：:]/.test(desc)
-                    || /群/.test(name);
+    // 群聊判定：只认名字里的「群」字，与 automation._is_group_contact 保持一致。
+    // 另外两种信号都实测会误伤真人（一旦误判，这个人的会话就从收件箱里消失了）：
+    //   · commonConversationIcon 图标：把 18、91786913、尼尼孩孩、用户8992652113758 标成群；
+    //   · 预览的「发送者：」前缀：91786913 的预览是「AD：分享[评论]」，同样被误判。
+    const isGroup = /群/.test(name);
 
     out.push({
       name: name,

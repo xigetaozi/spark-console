@@ -232,6 +232,9 @@ def _create(target: str | None, min_items: int, max_wait: float):
                 "一份没 stop 的实例，或同步代码被放进了 async 上下文）",
                 threading.current_thread().name, _thread_has_loop(), exc_info=True,
             )
+            # 本线程已不可用：交给 call() 换一条干净线程重跑，而不是把错误
+            # 抛给用户。这样即便某次泄漏发生过，也只是一次调用变慢，不会永久失败。
+            raise _FreshThread() from e
         raise
     t_start = time.time() - t0
     try:

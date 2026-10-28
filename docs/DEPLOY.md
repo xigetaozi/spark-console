@@ -252,6 +252,15 @@ for p in 8000 8001; do echo -n "$p -> "; curl -s http://127.0.0.1:$p/api/health;
 哪边 build 落后，就是哪边没重启。启动日志里也会有一行
 `douyin-spark 启动 | build=... | port=... | data=...`，直接区分实例。
 
+**用脚本一次做完（推荐）**，它会自动找实例、找代码目录、拉取、重启并逐个核对：
+
+```bash
+sudo bash /opt/douyin-spark/deploy/redeploy.sh
+```
+
+脚本最后会打印每个实例的 `build / data / 启动时间`，任意一项不对就以非零码退出。
+不用再猜服务名是 `@a` 还是 `-a`，也不用猜代码目录在哪。
+
 ---
 
 ## 八、日常运维

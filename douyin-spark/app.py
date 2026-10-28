@@ -272,14 +272,19 @@ def index() -> FileResponse:
 
 # 每次改动后端逻辑就把这个号 +1：部署后 curl /api/health 一看就知道线上到底换没换代码。
 # （排查过太多次"改了没生效"，其实都是进程没重启 / 文件没传上去。）
-BUILD = "2026-10-28.5"
+BUILD = "2026-10-28.6"
+PROC_START = time.time()      # 模块加载时刻 ≈ 进程启动时刻
 
 
 @app.get("/api/health")
 def health() -> dict:
     # 带上 data / port：a、b 两个实例共用一份代码，靠这两个字段区分是谁在答话。
+    # uptime_sec 是"到底重启了没有"的直接证据——面板上的轮次会骗人，这个不会。
     return {"ok": True, "build": BUILD, "port": os.environ.get("PORT", "8000"),
-            "data": str(DATA_DIR), "pool": browser_pool.diagnostics()}
+            "data": str(DATA_DIR),
+            "started_at": datetime.fromtimestamp(PROC_START).strftime("%Y-%m-%d %H:%M:%S"),
+            "uptime_sec": int(time.time() - PROC_START),
+            "pool": browser_pool.diagnostics()}
 
 
 _expiry_cache: dict = {"mtime": None, "data": {"at": None, "days": None, "level": "none"}}

@@ -26,15 +26,23 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+import uuid
 
-AGENT_VERSION = "1.2"
+AGENT_VERSION = "1.3"
 
+# 每次启动生成一个：服务器看到新标识就知道"上一单的窗口已经被关了"，
+# 从而把那条永远完不成的 running 记录判死，用户重开助手后不会卡在"有一单正在进行"。
+BOOT_ID = uuid.uuid4().hex[:12]
+
+# 脚本所在目录：日志、配置、浏览器配置都放这儿（双击 bat 时 cwd 就是这里）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # 日志同时写文件，窗口被关掉或用 bat 启动时也能事后回看
-LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent.log")
+LOG_PATH = os.path.join(BASE_DIR, "agent.log")
 # 独立的浏览器配置目录：扫码后登录态留在里面，下次打开往往已经登录，
 # 也避免动到用户自己 Chrome 的书签/插件。
-PROFILE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".agent-profile")
+PROFILE_DIR = os.path.join(BASE_DIR, ".agent-profile")
 
 # 抹掉最明显的自动化指纹；抖音靠它把 Playwright 认出来弹滑块
 STEALTH_JS = """
@@ -86,6 +94,7 @@ class Agent:
         self.key = key
         self.rid = ""
         self._hb_stop = threading.Event()
+        self._abort = threading.Event()
 
     def report(self, acc: str, step: str) -> None:
         """把「做到哪一步」告诉服务器，网页上就能看到真实进度。"""
@@ -108,13 +117,21 @@ class Agent:
         with _OPENER.open(req, timeout=timeout) as r:
             return r.status, r.read()
 
-    def ping(self, timeout: int = 10) -> None:
+    def ping(self, timeout: int = 10, acc: str = "", req_id: str = "") -> dict:
+        """心跳/自检；返回服务器答复（含 abort 标记）。"""
+        path = "/api/agent/ping?boot=" + BOOT_ID
+        if acc:
+            path += "&acc=%s&req_id=%s" % (urllib.parse.quote(acc), urllib.parse.quote(req_id))
         try:
-            self._req("/api/agent/ping", timeout=timeout)
+            _, body = self._req(path, timeout=timeout)
         except urllib.error.HTTPError as e:
             if e.code == 401:
                 raise AgentAuthError("控制台口令不正确") from e
             raise
+        try:
+            return json.loads(body or b"{}")
+        except Exception:
+            return {}
 
     def wait_task(self, timeout: int = 40) -> dict | None:
         """长轮询：服务器挂着连接，有任务立刻返回。"""
@@ -129,18 +146,22 @@ class Agent:
         return json.loads(body)
 
     # ---------------- 心跳 ----------------
-    def start_heartbeat(self, every: int = 10) -> None:
-        """扫码弹窗期间也要报活。
+    def start_heartbeat(self, every: int = 10, acc: str = "", rid: str = "") -> None:
+        """扫码弹窗期间也要报活，并顺手问一句"这单还算数吗"。
 
-        不这么做的话，长轮询停了 20 秒以上，网页就会判"助手未运行"，
-        用户正在扫码却看到"请先启动助手"，非常容易误判。
+        报活：长轮询停了 20 秒以上，网页就会判"助手未运行"，用户正在扫码却看到
+        "请先启动助手"，非常容易误判。
+        问算不算数：用户在网页上点了取消/重新下单时，旧窗口要靠这个才会自动关掉。
         """
         self._hb_stop.clear()
+        self._abort.clear()
 
         def loop() -> None:
             while not self._hb_stop.is_set():
                 try:
-                    self.ping(timeout=6)
+                    r = self.ping(timeout=6, acc=acc, req_id=rid)
+                    if r.get("abort"):
+                        self._abort.set()
                 except Exception:
                     pass
                 self._hb_stop.wait(every)
@@ -204,6 +225,10 @@ class Agent:
             deadline = time.time() + 300
             last_probe = time.time()
             while time.time() < deadline:
+                if self._abort.is_set():
+                    log("这一单在网页上被取消/被新单取代，关闭窗口")
+                    self._close(ctx)
+                    return None
                 if not self._alive(ctx):
                     log("浏览器窗口被关闭，本单结束")
                     return None
@@ -307,8 +332,7 @@ class Agent:
                 continue
         return False
 
-    @staticmethod
-    def _open_login(page, timeout: int = 30) -> bool:
+    def _open_login(self, page, timeout: int = 30) -> bool:
         """把登录二维码点出来。
 
         抖音首页的「登录」按钮位置/文案会变，而且点击本身经常"报了错但已经生效"
@@ -325,7 +349,9 @@ class Agent:
         ]
         deadline = time.time() + timeout
         while time.time() < deadline:
-            if Agent._qr_present(page):
+            if self._abort.is_set():  # 用户已取消，别再傻等
+                return False
+            if self._qr_present(page):
                 return True
             for sel in selectors:
                 try:
@@ -338,7 +364,7 @@ class Agent:
                     except Exception:
                         pass  # 点击报错也可能已经弹窗
                     time.sleep(2)
-                    if Agent._qr_present(page):
+                    if self._qr_present(page):
                         return True
                 except Exception:
                     continue
@@ -376,14 +402,41 @@ def selfcheck(agent: Agent) -> bool:
     return True
 
 
+def _cfg_line(name: str) -> str:
+    """读同目录 txt 的第一行有效内容（兼容记事本的 BOM）。"""
+    try:
+        with open(os.path.join(BASE_DIR, name), encoding="utf-8-sig") as f:
+            for line in f:
+                v = _clean(line)
+                if v:
+                    return v
+    except Exception:
+        pass
+    return ""
+
+
 def main() -> int:
     check_only, server, key = _parse_args(sys.argv[1:])
 
+    # 参数没给就从 server.txt / local-key.txt 读；都没有才交互式问。
+    # 这样 bat 里可以一行中文都不写，彻底避开 cmd 的编码坑。
+    server = server or _cfg_line("server.txt").rstrip("/")
+    key = key or _cfg_line("local-key.txt")
+
     if not server:
-        print("缺少服务器地址：双击「启动扫码助手.bat」，或 python spark-agent.py <服务器地址> <控制台口令>")
-        return 2
+        print("没找到 server.txt，请输入服务器地址（例：http://1.2.3.4）")
+        try:
+            server = input("服务器地址: ").strip().rstrip("/")
+        except EOFError:
+            return 2
     if not key:
-        print("缺少控制台口令（管理员口令）：python spark-agent.py <服务器地址> <控制台口令>")
+        print("没找到 local-key.txt，请输入控制台【管理员口令】")
+        try:
+            key = input("管理员口令: ").strip()
+        except EOFError:
+            return 2
+    if not server or not key:
+        print("服务器地址或口令为空，退出。")
         return 2
 
     agent = Agent(server, key)
@@ -422,7 +475,7 @@ def main() -> int:
         rid = task.get("req_id", "")
         agent.rid = rid
         log("收到任务：账号 %s，正在弹出扫码窗口…（窗口可能被挡在后面，必要时按 Alt+Tab）" % acc.upper())
-        agent.start_heartbeat()
+        agent.start_heartbeat(acc=acc, rid=rid)
         agent.report(acc, "accepted")
         try:
             state = agent.do_login(acc)

@@ -389,6 +389,10 @@ AGENT_SEEN: list[float] = []
 # 最近一次「带着错误口令来敲门」的时间：用来区分「助手没启动」和「助手在跑但口令不对」。
 # 没有这个，前端只能一律提示"请先启动助手"，用户看到的和真相经常不是一回事。
 AGENT_BADKEY: list[float] = []
+# 助手进程的启动标识（每次启动随机生成）。换了进程 = 之前那单没人管了
+AGENT_LAST_BOOT: list[str] = [""]
+# 点了「用本机扫码」后，多久之内重复点击算同一次（防连点），超过就当成"我要重来"
+AGENT_REUSE_WINDOW = 20
 AGENT_HEARTBEAT = 50      # 心跳有效期（秒）：比长轮询的 20s 宽裕一倍
 AGENT_TASK_TTL = 120      # 等接单最长（秒）：没人取就作废，前端不无限转圈
 AGENT_RUN_TTL = 600       # 接单后最长（秒）：扫码本身允许 5 分钟
@@ -469,12 +473,34 @@ def agent_progress(request: Request, payload: dict) -> Response:
 
 
 @app.get("/api/agent/ping")
-def agent_ping(request: Request) -> Response:
-    """助手自检/心跳：校验口令并刷新在线状态，不派任务。"""
+def agent_ping(request: Request, boot: str = "", acc: str = "", req_id: str = "") -> Response:
+    """助手自检/心跳：校验口令、刷新在线状态、汇报是否该中止当前这单。
+
+    boot 是助手进程的启动标识。换了个进程就等于换了一双眼睛：
+    上一条 running 记录属于已经关掉的那个窗口，永远不可能自己完成，
+    所以这里必须把它们判死，否则用户重开助手后永远卡在"有一单正在进行"。
+    """
     if not _agent_authed(request):
         return JSONResponse({"ok": False, "error": "口令不正确"}, 401)
     _mark_seen()
-    return JSONResponse({"ok": True, "server": "spark-console", "ts": int(time.time())})
+    killed = 0
+    if boot and boot != AGENT_LAST_BOOT[0]:
+        with AGENT_LOCK:
+            for t in AGENT_TASKS.values():
+                if t.get("status") in ("pending", "running"):
+                    t["status"] = "failed"
+                    t["error"] = "助手重启过，上一单已失效"
+                    killed += 1
+        AGENT_LAST_BOOT[0] = boot
+        if killed:
+            audit("agent_boot", "-", "重启清理 %d 单" % killed)
+    abort = False
+    if acc and req_id:
+        t = AGENT_TASKS.get(acc) or {}
+        # 这一单已经被取消/被新单取代/判死 → 通知助手把窗口关掉
+        abort = (t.get("req_id") != req_id) or (t.get("status") in ("failed", "cancelled"))
+    return JSONResponse({"ok": True, "server": "spark-console", "ts": int(time.time()),
+                         "abort": abort})
 
 
 @app.post("/api/agent/request/{acc}")
@@ -485,16 +511,21 @@ def agent_request(acc: str, request: Request) -> Response:
         return JSONResponse({"ok": False, "error": "未知账号"}, 404)
     with AGENT_LOCK:
         old = AGENT_TASKS.get(acc)
-        # 幂等：重复点按钮时复用未完成的那一单。
-        # 否则每次点击都会换 req_id，助手手里的旧 req_id 回传时被判定"任务不匹配"，
-        # 表现就是"窗口弹了、扫了、却一直转圈"。
-        if old and old.get("status") in ("pending", "running") and not _task_expired(old):
-            return JSONResponse({"ok": True, "req_id": old["req_id"], "reused": True,
-                                 "status": old.get("status"), "agent_online": _agent_online(),
-                                 "agent_state": _agent_state(),
-                                 "progress": old.get("progress", "")})
+        # 幂等：短时间内重复点按钮，复用同一单，避免连点把任务顶掉
+        # （旧 rid 回传时被判"任务不匹配"，表现就是"窗口弹了、扫了、却一直转圈"）。
+        # 但「20 秒后又点一次」不是连点，而是"上一单我不要了，重来"——
+        # 尤其是关掉浏览器窗口后，上一单永远完不成，必须允许生成新二维码。
+        if old and not _task_expired(old):
+            if old.get("status") == "pending" or (
+                    old.get("status") == "running"
+                    and time.time() - old.get("ts", 0) < AGENT_REUSE_WINDOW):
+                return JSONResponse({"ok": True, "req_id": old["req_id"], "reused": True,
+                                     "status": old.get("status"), "agent_online": _agent_online(),
+                                     "agent_state": _agent_state(),
+                                     "progress": old.get("progress", "")})
         rid = secrets.token_hex(8)
-        AGENT_TASKS[acc] = {"req_id": rid, "ts": time.time(), "status": "pending", "error": ""}
+        AGENT_TASKS[acc] = {"req_id": rid, "ts": time.time(), "status": "pending",
+                            "error": "", "step": "", "progress": ""}
     audit("agent_request", acc, rid)
     return JSONResponse({"ok": True, "req_id": rid, "reused": False, "status": "pending",
                          "agent_online": _agent_online(), "agent_state": _agent_state()})
@@ -527,6 +558,9 @@ def agent_result(request: Request, payload: dict) -> Response:
         if not t or t["req_id"] != rid:
             audit("agent_stale", acc, rid)
             return JSONResponse({"ok": False, "error": "任务不匹配（可能已超时或被新请求取代）"}, 409)
+        if t.get("status") == "cancelled":
+            # 用户已经点了取消，助手随后报的"未完成"不用再覆盖状态
+            return JSONResponse({"ok": True, "ignored": "已取消"})
         if payload.get("ok") and payload.get("state_b64"):
             try:
                 raw = base64.b64decode(payload["state_b64"])
@@ -561,6 +595,21 @@ def agent_status(acc: str, request: Request) -> Response:
     return JSONResponse({"status": status, "error": err,
                          "step": t.get("step", ""), "progress": t.get("progress", ""),
                          "agent_online": _agent_online(), "agent_state": _agent_state()})
+
+
+@app.post("/api/agent/cancel/{acc}")
+def agent_cancel(acc: str, request: Request) -> Response:
+    """取消这一单：助手下次心跳会收到 abort，并把弹出的窗口关掉。"""
+    if not _authed(request):
+        return JSONResponse({"ok": False, "error": "未授权"}, 401)
+    with AGENT_LOCK:
+        t = AGENT_TASKS.get(acc)
+        if not t or t.get("status") not in ("pending", "running"):
+            return JSONResponse({"ok": False, "error": "没有进行中的扫码任务"}, 404)
+        t["status"] = "cancelled"
+        t["error"] = "已取消"
+    audit("agent_cancel", acc)
+    return JSONResponse({"ok": True})
 
 
 @app.get("/api/audit")

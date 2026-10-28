@@ -430,6 +430,18 @@ async function agentLogin() {
       '<span style="color:#888">窗口要一直开着（可最小化）；关掉窗口就等于停用扫码。</span></div>';
     return;
   }
+  // 复用了一条还在 running 的旧单：说明上一次的窗口可能还开着（或早已被关掉）
+  if (d.reused && d.status === 'running') {
+    setState('上一次的扫码还没结束：' + (d.progress || '进行中'), 'warn');
+    document.getElementById('qrbox').innerHTML =
+      '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.75;text-align:left">' +
+      '服务器上还挂着<b>上一次的扫码任务</b>，所以这次没有生成新二维码。<br><br>' +
+      '如果你已经把那个浏览器窗口关掉了，这一单永远不会自己结束 —— ' +
+      '点下面的<b>「取消」</b>，再点「用本机扫码」，就会出一张新码。<br><br>' +
+      '<span style="color:#888">取消后旧窗口（如果还在）会自动关闭。</span></div>';
+    pollAgent();
+    return;
+  }
   setState(d.reused ? '这一单已在队列里，等助手接单…' : '已通知本机助手，正在等它接单…', 'warn');
   document.getElementById('qrbox').innerHTML =
     '<div style="color:#333;padding:14px;font-size:12.5px;line-height:1.75;text-align:left">' +
@@ -459,8 +471,18 @@ function pollAgent() {
       } else if (d.status === 'expired') {
         setState('这一单已作废：' + (d.error || '助手没接单'), 'err');
         stopTimers();
+      } else if (d.status === 'cancelled') {
+        setState('这一单已取消，可以重新点「用本机扫码」生成新二维码', 'err');
+        stopTimers();
       } else if (d.status === 'running') {
         setState((d.progress || '本机助手已接单，正在准备扫码窗口') + '（' + waited + 's）', 'warn');
+        // 卡在同一状态太久，直接把"怎么办"写脸上：这一单的窗口多半已经被关掉了
+        if (waited > 25) {
+          document.getElementById('mHint').innerHTML =
+            '正在等你在电脑上扫码。已经 ' + waited + ' 秒没有进展：<br>' +
+            '<span style="color:#ffc861">如果你刚才把那个窗口关掉了，这一单就永远完不成 —— ' +
+            '点「取消」，再点一次「用本机扫码」会重新生成二维码（旧窗口会自动关闭）</span>';
+        }
       } else if (waited > 15) {
         const tail = d.agent_state === 'ok'
           ? '助手在线，但没取到这一单，点「取消」后重新点扫码'
@@ -476,7 +498,12 @@ function retryLogin() {
 }
 
 async function cancelLogin() {
-  if (loginAcc) { try { await api(`/api/login/cancel/${loginAcc}`, { method: 'POST' }); } catch (e) {} }
+  if (loginAcc) {
+    try { await api(`/api/login/cancel/${loginAcc}`, { method: 'POST' }); } catch (e) {}
+    // 同时把本机扫码这一单也作废：否则服务器还挂着 running，下次点击会被"复用"，
+    // 表现就是怎么点都不出新二维码。助手下一次心跳会收到 abort 并把窗口关掉。
+    try { await api(`/api/agent/cancel/${loginAcc}`, { method: 'POST' }); } catch (e) {}
+  }
   stopTimers();
   document.getElementById('mask').classList.remove('show');
 }
